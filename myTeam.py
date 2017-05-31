@@ -134,23 +134,24 @@ class SecretAgent(CaptureAgent):
         for action in actions:
             print action
             if action == "North":
-                print "north"
                 nextCoord = (currentX,currentY+1)
             elif action == "East":
-                print "east"
                 nextCoord = (currentX+1,currentY)
             elif action == "South":
-                print "south"
                 nextCoord = (currentX,currentY-1)
             elif action == "West":
-                print "west"
                 nextCoord = (currentX-1,currentY)
             else:
+                bestAction = action
                 continue
             if self.getMazeDistance(nextCoord, targetPosition) < self.getMazeDistance(currentCoord, targetPosition):
                 bestAction = action
                 bestActions.append((action, self.getMazeDistance(nextCoord, targetPosition)))
-        bestAction = max(bestActions, key= lambda x:x[1])[0]
+        if bestActions:
+            print "ACTION!!!"
+            bestAction = max(bestActions, key= lambda x:x[1])[0]
+        else:
+            print "NO ACTION!!!----------"
         return bestAction
         
         
