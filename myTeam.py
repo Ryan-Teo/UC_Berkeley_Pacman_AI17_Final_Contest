@@ -110,7 +110,7 @@ class SecretAgent(CaptureAgent):
         You should change this in your own agent.
         '''
 
-        return random.choice(actions)
+        return self.hover(gameState)
     
     
     #Get all legal positions (no walls)
@@ -123,10 +123,35 @@ class SecretAgent(CaptureAgent):
     #goHome -- shortest distance back to friendly side
 
     def goToCoord(self, (x,y), gameState):
-        currentPosition = gameState.getAgentState(self.index).getPosition()
+        #Could edit this to take into account weights
+        currentCoord = currentX, currentY = gameState.getAgentState(self.index).getPosition()
+        print self.name, currentCoord
         targetPosition = (x,y)
         actions = gameState.getLegalActions(self.index)
-        print actions
+        bestActions = []
+        bestAction = None
+        nextCoord = None
+        for action in actions:
+            print action
+            if action == "North":
+                print "north"
+                nextCoord = (currentX,currentY+1)
+            elif action == "East":
+                print "east"
+                nextCoord = (currentX+1,currentY)
+            elif action == "South":
+                print "south"
+                nextCoord = (currentX,currentY-1)
+            elif action == "West":
+                print "west"
+                nextCoord = (currentX-1,currentY)
+            else:
+                continue
+            if self.getMazeDistance(nextCoord, targetPosition) < self.getMazeDistance(currentCoord, targetPosition):
+                bestAction = action
+                bestActions.append((action, self.getMazeDistance(nextCoord, targetPosition)))
+        bestAction = max(bestActions, key= lambda x:x[1])[0]
+        return bestAction
         
         
     
@@ -138,32 +163,37 @@ class SecretAgent(CaptureAgent):
             if self.getMazeDistance(currentPosition, coord) < minDist:
                 minCoord = coord
                 minDist = self.getMazeDistance(currentPosition, coord)
+        CaptureAgent.debugDraw(self,[minCoord], [1,1,1], clear = False) #REMOVE
         return minCoord, minDist
 
 class anton(SecretAgent):
     #Top agent
     def hover(self, gameState):
         self.top = True
+        self.name = "anton"
         print "myTeam - anton"
         getOpenings(self, gameState)
         if self.red:
             CaptureAgent.debugDraw(self,self.hoverCoords, [1,0.5,0], clear = False) #REMOVE
         else:
             CaptureAgent.debugDraw(self,self.hoverCoords, [0,0.5,1], clear = False) #REMOVE
-        closestCoord = SecretAgent.getClosestCoord(self, self.hoverCoords, gameState)
-        SecretAgent.goToCoord(self, closestCoord, gameState)
+        closestCoord, distance = SecretAgent.getClosestCoord(self, self.hoverCoords, gameState)
+        return SecretAgent.goToCoord(self, closestCoord, gameState)
         
 
 class harry(SecretAgent):
     #Bot agent
     def hover(self, gameState):
         self.top = False
+        self.name = "harry"
         print "myTeam - harry"
         getOpenings(self, gameState)
         if self.red:
             CaptureAgent.debugDraw(self,self.hoverCoords, [1,0.1,0], clear = False) #REMOVE
         else:
             CaptureAgent.debugDraw(self,self.hoverCoords, [0,0.9,1], clear = False) #REMOVE
+        closestCoord, distance = SecretAgent.getClosestCoord(self, self.hoverCoords, gameState)
+        return SecretAgent.goToCoord(self, closestCoord, gameState)
 
 def getOpenings(self, gameState):
     #sets hover coordinates for each agent
