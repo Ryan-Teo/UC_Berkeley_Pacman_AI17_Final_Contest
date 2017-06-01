@@ -78,6 +78,11 @@ class SecretAgent(CaptureAgent):
         '''
         Your initialization code goes here, if you need any.
         '''
+        
+        #     Is basic formula for colour debugging:
+        #     CaptureAgent.debugDraw(self,cells, [1,0,0], clear=False)
+        
+        
         if self.red and not self.red == None:
             #if on red team
             print "I'm red! -- remove"
@@ -99,6 +104,44 @@ class SecretAgent(CaptureAgent):
         self.notWalls = noWalls
     
         self.hover(gameState)
+        
+    
+    def centreToFood(self):
+        """This section is to find the shortest path from base line
+        to the closest food on enemy side, while splitting y in two"""
+                
+        food = CaptureAgent.getFood(self, gameState)
+        foodListTop = []
+        foodListBottom = []
+        for x in range(food.width):
+            for y in range(food.height):
+                if (food[x][y]):
+                    if y > food.height/2-1:
+                        foodListTop.append((x,y))
+                    else:
+                        foodListBottom.append((x,y))    
+        
+        if self.red:
+            centreSafeLine = food.width/2 - 1    
+        else:
+            centreSafeLine = food.width/2
+        
+        if foodListTop != None:
+            foodTarget = foodListTop[0]
+            bestDistance = None
+            bestDistanceCoord = []
+            for y in range(food.height/2, food.height):
+                
+                if not gameState.hasWall(centreSafeLine, y): 
+                    temp = self.getMazeDistance((centreSafeLine, y), foodTarget)
+                    if bestDistance == None or temp < bestDistance:
+                        bestDistance = temp
+                        bestDistanceCoord= (centreSafeLine, y)
+                        
+#         Debugging:
+#         CaptureAgent.debugDraw(self,[foodTarget], [1,0,0], clear=False)
+#         CaptureAgent.debugDraw(self,[bestDistanceCoord], [1,0,0], clear=False)
+        
         
     def chooseAction(self, gameState):
         """
@@ -181,7 +224,6 @@ class anton(SecretAgent):
         closestCoord, distance = SecretAgent.getClosestCoord(self, self.hoverCoords, gameState)
         return SecretAgent.goToCoord(self, closestCoord, gameState)
         
-
 class harry(SecretAgent):
     #Bot agent
     def hover(self, gameState):
