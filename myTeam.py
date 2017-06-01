@@ -24,7 +24,7 @@ from util import nearestPoint
 #################
 
 def createTeam(firstIndex, secondIndex, isRed,
-							 first = 'ReflexCaptureAgent', second = 'ReflexCaptureAgent'):
+							 first = 'ReflexCaptureAgent', second = 'DefensiveReflexAgent'):
 	"""
 	This function should return a list of two agents that will form the
 	team, initialized using firstIndex and secondIndex as their agent
@@ -138,6 +138,7 @@ class ReflexCaptureAgent(CaptureAgent):
 		features['successorScore'] = self.getScore(successor)
 		features['distanceToFood'] = 0
 		features['distanceToHome'] = 0
+		features['stop'] = 0;
 
 		features = util.Counter()
 		successor = self.getSuccessor(gameState, action)
@@ -152,7 +153,7 @@ class ReflexCaptureAgent(CaptureAgent):
 			distanceToHome = self.getMazeDistance(self.start, myPos)
 			if self.food == float("inf") or self.food == 0:
 				features['distanceToFood'] = minDistance
-				print "going for food"
+				print "going for food", myPos
 			else:
 				features['distanceToHome'] = distanceToHome
 				print "going home"
@@ -162,6 +163,16 @@ class ReflexCaptureAgent(CaptureAgent):
 		elif self.food == float("inf"):
 			features['food'] = 0 
 
+		if action == 'Stop':
+			features['stop'] = 1
+
+		floatX, floatY = myPos
+		myIntPos = (int(floatX), int(floatY))
+		print "myIntPos", myIntPos
+		if myIntPos in currentFoodList:
+			features['eatTheFood'] = 1
+			print "eat the food"
+
 		return features
 
 	def getWeights(self, gameState, action):
@@ -169,7 +180,7 @@ class ReflexCaptureAgent(CaptureAgent):
 		Normally, weights do not depend on the gamestate.  They can be either
 		a counter or a dictionary.
 		"""
-		return {'successorScore': 1.0, 'distanceToHome': -10, 'distanceToFood': -10, 'food': 50}
+		return {'successorScore': 1.0, 'distanceToHome': -10, 'distanceToFood': -10, 'food': 50, 'stop': -100, 'eatTheFood': 100}
 
 	def balikKampung(self, gameState):
 		safeCoords = []
@@ -254,3 +265,38 @@ class ReflexCaptureAgent(CaptureAgent):
 		if CaptureAgent.getFood(self, oldGameState)<CaptureAgent.getFood(self, gameState):
 			jiakLo = True
 		return jiakLo
+
+class DefensiveReflexAgent(ReflexCaptureAgent):
+	"""
+	A reflex agent that keeps its side Pacman-free. Again,
+	this is to give you an idea of what a defensive agent
+	could be like.  It is not the best or only way to make
+	such an agent.
+	"""
+	def getFeatures(self, gameState, action):
+		features = util.Counter()
+		successor = self.getSuccessor(gameState, action)
+
+		myState = successor.getAgentState(self.index)
+		myPos = myState.getPosition()
+
+		# Computes whether we're on defense (1) or offense (0)
+		features['onDefense'] = 1
+		if myState.isPacman: features['onDefense'] = 0
+
+		# Computes distance to invaders we can see
+		enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+		invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
+		features['numInvaders'] = len(invaders)
+		if len(invaders) > 0:
+			dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
+			features['invaderDistance'] = min(dists)
+
+		if action == Directions.STOP: features['stop'] = 1
+		rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
+		if action == rev: features['reverse'] = 1
+
+		return features
+
+	def getWeights(self, gameState, action):
+		return {'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'stop': -100, 'reverse': -2}
