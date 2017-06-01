@@ -101,16 +101,12 @@ class SecretAgent(CaptureAgent):
         self.hover(gameState)
         
     def chooseAction(self, gameState):
-        """
-        Picks among actions randomly.
-        """
         actions = gameState.getLegalActions(self.index)
-
-        '''
-        You should change this in your own agent.
-        '''
-
-        return self.hover(gameState)
+        
+        
+        
+        #where to return action
+        return self.getFood(gameState)
     
     
     #Get all legal positions (no walls)
@@ -118,6 +114,8 @@ class SecretAgent(CaptureAgent):
     	#Add food reward (value = 1)
     	#Initial power capsule reward (value = -99)
     	#When ghost within 5 block radius, change power capsule reward (value = 99)
+    #features = reward of each gamestate for each agent
+    #reward = weight * features
     #Agent stuff
     	#If agent not enemy, agent.isPacman == true, agent is on enemy side
     #goHome -- shortest distance back to friendly side
@@ -154,8 +152,6 @@ class SecretAgent(CaptureAgent):
             print "NO ACTION!!!----------"
         return bestAction
         
-        
-    
     def getClosestCoord(self, coordList, gameState):
         currentPosition = gameState.getAgentState(self.index).getPosition()
         minCoord = None
@@ -166,6 +162,14 @@ class SecretAgent(CaptureAgent):
                 minDist = self.getMazeDistance(currentPosition, coord)
         CaptureAgent.debugDraw(self,[minCoord], [1,1,1], clear = False) #REMOVE
         return minCoord, minDist
+
+    def getFood(self, gameState):
+    	print "getFood"
+    	foodList = self.getFood(gameState).asList()
+    	closestFood, distance = getClosestCoord(foodList, gameState)
+    	return self.goToCoord(self, closestFood, gameState)
+
+
 
 class anton(SecretAgent):
     #Top agent
@@ -179,6 +183,7 @@ class anton(SecretAgent):
         else:
             CaptureAgent.debugDraw(self,self.hoverCoords, [0,0.5,1], clear = False) #REMOVE
         closestCoord, distance = SecretAgent.getClosestCoord(self, self.hoverCoords, gameState)
+        print len(self.notWalls) #REMOVE
         return SecretAgent.goToCoord(self, closestCoord, gameState)
         
 
