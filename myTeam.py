@@ -64,6 +64,8 @@ class ReflexCaptureAgent(CaptureAgent):
 					noWalls.append((x,y))
 		self.notWalls = noWalls
 
+		self.goingHome = False
+
 	def chooseAction(self, gameState):
 		"""
 		Picks among the actions with the highest Q(s,a).
@@ -79,6 +81,15 @@ class ReflexCaptureAgent(CaptureAgent):
 		bestActions = [a for a, v in zip(actions, values) if v == maxValue]
 
 		foodLeft = len(self.getFood(gameState).asList())
+		
+		if not gameState.getAgentState(self.index).isPacman:
+			self.goingHome = False
+
+		if self.foodEaten(gameState) or self.goingHome is True:
+			self.goingHome = True
+			actionHome = self.balikKampung(gameState)
+			if actionHome is not None:
+				return actionHome
 
 		if foodLeft <= 2:
 			bestDist = 9999
@@ -163,10 +174,11 @@ class ReflexCaptureAgent(CaptureAgent):
 		if not self.red:
 			homeLine -= 1
 		for y in range(0, height):
-			if (homeLine,y) in self.noWalls:
+			if (homeLine,y) in self.notWalls:
 				safeCoords.append((homeLine,y))
 		if safeCoords:
-			return goToCoords(getClosestCoord(safeCoords, gameState), gameState)
+			coord, distance = self.getClosestCoord(safeCoords, gameState)
+			return self.goToCoord(coord, gameState)
 		return None #check for none
 
 	def highlightEnemy(self, gameState):
@@ -178,9 +190,9 @@ class ReflexCaptureAgent(CaptureAgent):
 		CaptureAgent.debugDraw(self,enemies,[1,0,0], clear = True)
 		return enemies
 
-	def goToCoord(self, grace, gameState):
+	def goToCoord(self, (x,y), gameState):
 	#Could edit this to take into account weights
-		x,y = grace
+		# x,y = grace
 		currentCoord = currentX, currentY = gameState.getAgentState(self.index).getPosition()
 		targetPosition = (x,y)
 		actions = gameState.getLegalActions(self.index)
@@ -208,6 +220,7 @@ class ReflexCaptureAgent(CaptureAgent):
 			bestAction = max(bestActions, key= lambda x:x[1])[0]
 		else:
 			print "NO ACTION!!!----------"
+			return None
 		return bestAction
 
 	def getClosestCoord(self, coordList, gameState):
@@ -218,7 +231,7 @@ class ReflexCaptureAgent(CaptureAgent):
 			if self.getMazeDistance(currentPosition, coord) < minDist:
 				minCoord = coord
 				minDist = self.getMazeDistance(currentPosition, coord)
-		CaptureAgent.debugDraw(self,[minCoord], [1,1,1], clear = False) #REMOVE
+		CaptureAgent.debugDraw(self,[minCoord], [1,1,1], clear = True) #REMOVE
 		return minCoord, minDist
 
 	def enemyClosestDist(self, gameState):
@@ -232,10 +245,13 @@ class ReflexCaptureAgent(CaptureAgent):
 					closest = distance
 		return closest
 
-	def jiakBaBui(self, gameState):
+	def foodEaten(self, gameState):
 		#return boolean
-		jiakLo = False
+		eaten = None
 		oldGameState = self.getPreviousObservation()
-		if CaptureAgent.getFood(self, oldGameState)<CaptureAgent.getFood(self, gameState):
-			jiakLo = True
-		return jiakLo
+		if oldGameState is not None: 
+			if CaptureAgent.getFood(self, oldGameState)<CaptureAgent.getFood(self, gameState):
+				eaten = True
+			else:
+				eaten = False
+		return eaten
