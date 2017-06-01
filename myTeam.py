@@ -83,17 +83,13 @@ class ReflexCaptureAgent(CaptureAgent):
 		successor = self.getSuccessor(gameState, random.choice(bestActions))
 		foodList = self.getFood(successor).asList() 
 
-		print "self.food, foodLeft, len(foodList)", self.food, foodLeft, len(foodList)
-
 		if(len(foodList) < foodLeft):
 			if self.food == float("inf"):
 				self.food = 0
 			self.food += 1
-			print "ate a dot", len(foodList), foodLeft
 
 		if not gameState.getAgentState(self.index).isPacman and self.food < 20:
 			self.food = float("inf")
-			print "deposited food"
 
 		if foodLeft <= 2:
 			bestDist = 9999
@@ -126,7 +122,6 @@ class ReflexCaptureAgent(CaptureAgent):
 		"""
 		features = self.getFeatures(gameState, action)
 		weights = self.getWeights(gameState, action)
-		print "action, value", action, features*weights
 		return features * weights
 
 	def getFeatures(self, gameState, action):
@@ -138,10 +133,8 @@ class ReflexCaptureAgent(CaptureAgent):
 		features['successorScore'] = self.getScore(successor)
 		features['distanceToFood'] = 0
 		features['distanceToHome'] = 0
-		features['stop'] = 0;
+		features['stop'] = 0
 
-		features = util.Counter()
-		successor = self.getSuccessor(gameState, action)
 		foodList = self.getFood(successor).asList() 
 		currentFoodList = self.getFood(gameState).asList() 
 
@@ -153,10 +146,8 @@ class ReflexCaptureAgent(CaptureAgent):
 			distanceToHome = self.getMazeDistance(self.start, myPos)
 			if self.food == float("inf") or self.food == 0:
 				features['distanceToFood'] = minDistance
-				print "going for food", myPos
 			else:
 				features['distanceToHome'] = distanceToHome
-				print "going home"
 
 		if not len(foodList) == len(currentFoodList):
 			features['food'] = 1
@@ -168,10 +159,8 @@ class ReflexCaptureAgent(CaptureAgent):
 
 		floatX, floatY = myPos
 		myIntPos = (int(floatX), int(floatY))
-		print "myIntPos", myIntPos
 		if myIntPos in currentFoodList:
 			features['eatTheFood'] = 1
-			print "eat the food"
 
 		return features
 
@@ -214,7 +203,6 @@ class ReflexCaptureAgent(CaptureAgent):
 		bestAction = None
 		nextCoord = None
 		for action in actions:
-			print action
 			if action == "North":
 				nextCoord = (currentX,currentY+1)
 			elif action == "East":
@@ -230,10 +218,7 @@ class ReflexCaptureAgent(CaptureAgent):
 			bestAction = action
 			bestActions.append((action, self.getMazeDistance(nextCoord, targetPosition)))
 		if bestActions:
-			print "ACTION!!!"
 			bestAction = max(bestActions, key= lambda x:x[1])[0]
-		else:
-			print "NO ACTION!!!----------"
 		return bestAction
 
 	def getClosestCoord(self, coordList, gameState):
