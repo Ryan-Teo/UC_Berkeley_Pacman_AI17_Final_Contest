@@ -59,7 +59,7 @@ class ReflexCaptureAgent(CaptureAgent):
     Picks among the actions with the highest Q(s,a).
     """
     actions = gameState.getLegalActions(self.index)
-
+    highlightEnemy(self, gameState)
     # You can profile your evaluation time by uncommenting these lines
     # start = time.time()
     values = [self.evaluate(gameState, a) for a in actions]
@@ -136,8 +136,50 @@ class ReflexCaptureAgent(CaptureAgent):
     return features
 
   def getWeights(self, gameState, action):
-    """
-    Normally, weights do not depend on the gamestate.  They can be either
-    a counter or a dictionary.
-    """
-    return {'successorScore': 1.0, 'distanceToFood': -10, 'food': 1000}
+	  return{'successorScore':1.0, 'distanceToFood':-10,'food':1000}
+
+	def balikKampung(self, gameState):
+		#get line of home
+		#get closest point
+		#go there
+	
+
+
+
+
+# def getWeights(self, gameState, action):
+
+# 	"""
+# 	Normally, weights do not depend on the gamestate.  They can be either
+#   a counter or a dictionary.
+#   """
+#   return {'successorScore': 1.0, 'distanceToFood': -10, 'food': 1000}
+
+def highlightEnemy(self, gameState):
+	enemies = []
+	for enemy in self.getOpponents(gameState):
+		coord = gameState.getAgentPosition(enemy)
+		if coord != None:
+			enemies.append(coord)
+	CaptureAgent.debugDraw(self,enemies,[1,0,0], clear = True)
+	return enemies
+
+  # def highlightSight(self, gameState):
+
+
+
+  # def highlightNoise(self, gameState):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
