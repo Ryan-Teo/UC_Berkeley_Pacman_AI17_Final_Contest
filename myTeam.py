@@ -162,8 +162,7 @@ class ReflexCaptureAgent(CaptureAgent):
 		for y in range(0, height):
 			if (homeLine,y) in self.noWalls:
 				safeCoords.append((homeLine,y))
-    
-    if safeCoords:
+		if safeCoords:
     	return goToCoords(getClosestCoord(safeCoords, gameState), gameState)
     return None #check for none
 
