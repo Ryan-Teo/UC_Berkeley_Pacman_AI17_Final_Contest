@@ -14,7 +14,7 @@
 
 from captureAgents import CaptureAgent
 import distanceCalculator
-import random, time, util, sys
+import random, time, util, sys, math
 from game import Directions
 import game
 from util import nearestPoint
@@ -51,7 +51,7 @@ class ReflexCaptureAgent(CaptureAgent):
 	"""
 	def registerInitialState(self, gameState):
 		self.start = gameState.getAgentPosition(self.index)
-		self.food = 0
+		self.food = float("inf")
 		CaptureAgent.registerInitialState(self, gameState)
 
 		#Find all coords with no walls
@@ -80,12 +80,27 @@ class ReflexCaptureAgent(CaptureAgent):
 
 		foodLeft = len(self.getFood(gameState).asList())
 
+		successor = self.getSuccessor(gameState, random.choice(bestActions))
+		foodList = self.getFood(successor).asList() 
+
+		print "self.food, foodLeft, len(foodList)", self.food, foodLeft, len(foodList)
+
+		if(len(foodList) < foodLeft):
+			if self.food == float("inf"):
+				self.food = 0
+			self.food += 1
+			print "ate a dot", len(foodList), foodLeft
+
+		if not gameState.getAgentState(self.index).isPacman and self.food < 20:
+			self.food = float("inf")
+			print "deposited food"
+
 		if foodLeft <= 2:
 			bestDist = 9999
 			for action in actions:
 				successor = self.getSuccessor(gameState, action)
 				pos2 = successor.getAgentPosition(self.index)
-				dist = self.getMazeDistance(self.start,pos2)
+				dist = self.getMazeDistance(self.start, pos2)
 				if dist < bestDist:
 					bestAction = action
 					bestDist = dist
@@ -134,18 +149,18 @@ class ReflexCaptureAgent(CaptureAgent):
 		if len(foodList) > 0: # This should always be True,  but better safe than sorry
 			myPos = successor.getAgentState(self.index).getPosition()
 			minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
-			if len(foodList) == len(currentFoodList):
+			distanceToHome = self.getMazeDistance(self.start, myPos)
+			if self.food == float("inf") or self.food == 0:
 				features['distanceToFood'] = minDistance
-				print "min distance", minDistance, len(foodList), len(currentFoodList)
+				print "going for food"
 			else:
-				features['distanceToFood'] = -minDistance
-				self.food = 1
-				print "min distance (going back)", minDistance, len(foodList), len(currentFoodList)
+				features['distanceToHome'] = distanceToHome
+				print "going home"
 
-		if not successor.getAgentState(self.index).isPacman:
-			self.food = 0
-
-		features['food'] = self.food
+		if not len(foodList) == len(currentFoodList):
+			features['food'] = 1
+		elif self.food == float("inf"):
+			features['food'] = 0 
 
 		return features
 
@@ -154,7 +169,7 @@ class ReflexCaptureAgent(CaptureAgent):
 		Normally, weights do not depend on the gamestate.  They can be either
 		a counter or a dictionary.
 		"""
-		return {'successorScore': 1.0, 'distanceToHome': -10, 'distanceToFood': -10, 'food': 100}
+		return {'successorScore': 1.0, 'distanceToHome': -10, 'distanceToFood': -10, 'food': 50}
 
 	def balikKampung(self, gameState):
 		safeCoords = []
