@@ -52,7 +52,6 @@ class ReflexCaptureAgent(CaptureAgent):
  
   def registerInitialState(self, gameState):
     self.start = gameState.getAgentPosition(self.index)
-    self.food = len(self.getFood(gameState).asList())
     CaptureAgent.registerInitialState(self, gameState)
 
   def chooseAction(self, gameState):
@@ -118,20 +117,21 @@ class ReflexCaptureAgent(CaptureAgent):
     features = util.Counter()
     successor = self.getSuccessor(gameState, action)
     foodList = self.getFood(successor).asList() 
+    currentFoodList = self.getFood(gameState).asList() 
 
     # Compute distance to the nearest food
 
     if len(foodList) > 0: # This should always be True,  but better safe than sorry
       myPos = successor.getAgentState(self.index).getPosition()
       minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
-      if len(foodList) == self.food:
+      if len(foodList) == len(currentFoodList):
         features['distanceToFood'] = minDistance
-        print "min distance", minDistance, self.food
+        print "min distance", minDistance, len(foodList), len(currentFoodList)
         print "pos",  myPos, foodList
       else:
         features['distanceToFood'] = -minDistance
         features['food'] = 1
-        print "min distance (going back)", minDistance, self.food
+        print "min distance (going back)", minDistance, len(foodList), len(currentFoodList)
 
     return features
 
