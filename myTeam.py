@@ -64,6 +64,12 @@ class ReflexCaptureAgent(CaptureAgent):
 					noWalls.append((x,y))
 		self.notWalls = noWalls
 
+		self.myFood = None
+		if self.red:
+			self.myFood = gameState.getRedFood().asList()
+		else:
+			self.myFood = gameState.getBlueFood().asList()
+
 	def chooseAction(self, gameState):
 		"""
 		Picks among the actions with the highest Q(s,a).
@@ -151,7 +157,7 @@ class ReflexCaptureAgent(CaptureAgent):
 			myPos = successor.getAgentState(self.index).getPosition()
 			minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
 			distanceToHome = self.getMazeDistance(self.start, myPos)
-			if self.food == float("inf") or self.food == 0:
+			if self.food == float("inf") or self.food < 3:
 				features['distanceToFood'] = minDistance
 				print "going for food", myPos
 			else:
@@ -179,6 +185,23 @@ class ReflexCaptureAgent(CaptureAgent):
 			features['eatTheFood'] = 0
 			print "running for life"
 
+		enemyDanger = self.enemyClosestDist(successor)	
+		if(enemyDanger != None):
+			if(enemyDanger <= 4):
+				features['escape'] = 8/enemyDanger
+			elif(enemyDanger <= 8):
+				features['escape'] = 1
+			else:
+				features['escape'] = 0  
+		
+		if features['escape'] != 0:
+			features['eatTheFood'] = 0
+		
+		capsuleCoord, capsuleDist = self.capsuleDist(gameState)
+		
+		if capsuleDist < enemyDanger:
+			features['getCapsule'] = 1
+
 		return features
 
 	def getWeights(self, gameState, action):
@@ -186,7 +209,8 @@ class ReflexCaptureAgent(CaptureAgent):
 		Normally, weights do not depend on the gamestate.  They can be either
 		a counter or a dictionary.
 		"""
-		return {'successorScore': 1.0, 'distanceToHome': -10, 'distanceToFood': -10, 'food': 50, 'stop': -100, 'eatTheFood': 100}
+		return {'successorScore': 1.0, 'distanceToHome': -10, 'distanceToFood': -10, 'food': 50, 
+				'stop': -100, 'eatTheFood': 100, 'escape': -50, 'getCapsule':1000}
 
 	def balikKampung(self, gameState):
 		safeCoords = []
@@ -252,11 +276,19 @@ class ReflexCaptureAgent(CaptureAgent):
 			if self.getMazeDistance(currentPosition, coord) < minDist:
 				minCoord = coord
 				minDist = self.getMazeDistance(currentPosition, coord)
-		CaptureAgent.debugDraw(self,[minCoord], [1,1,1], clear = False) #REMOVE
+		# CaptureAgent.debugDraw(self,[minCoord], [1,1,1], clear = False) #REMOVE
 		return minCoord, minDist
 
+	def enemyCoord(self, gameState):
+		enemies = []
+		for enemy in self.getOpponents(gameState):
+			coord = gameState.getAgentPosition(enemy)
+    		if coord != None:
+    			enemies.append(coord)
+		return enemies
+
 	def enemyClosestDist(self, gameState):
-		enemies = self.enemyCoord(self, gameState)
+		enemies = self.enemyCoord(gameState)
 		myPos = gameState.getAgentPosition(self.index)
 		closest = None
 		if len(enemies) != 0:
@@ -273,6 +305,42 @@ class ReflexCaptureAgent(CaptureAgent):
 		if CaptureAgent.getFood(self, oldGameState)<CaptureAgent.getFood(self, gameState):
 			jiakLo = True
 		return jiakLo
+
+	def capsuleDist(self, gameState):
+		capsules = CaptureAgent.getCapsules(self, gameState)
+		capsuleCoord, capsuleDist = self.getClosestCoord(capsules, gameState)
+		return capsuleCoord, capsuleDist
+
+	def enemyOnOurSide(self, gameState):
+		missingFood = None
+		if self.red:
+			redFood = gameState.getRedFood().asList()
+			if len(redFood) < len(self.myFood):
+				for food in self.myFood:
+					if food not in redFood:
+						missingFood = food
+						self.myFood = redFood
+		else:
+			blueFood = gameState.getBlueFood().asList()
+			if len(blueFood) < len(self.myFood):
+				for food in self.myFood:
+					if food not in blueFood:
+						missingFood = food
+						self.myFood = blueFood
+		return missingFood
+		
+	def closestAgent(self, gameState, targetPos):
+		#for missingFood, check if return value == self.index
+		if targetPos is None:
+			return False
+		else:
+			myTeam = self.getTeam(gameState)
+			teamDist = []
+			for teamMate in myTeam:
+				distToEnemy = gameState.getMazeDistance(gameState.getAgentPosition(teamMate),missingFood)
+				teamDist.append((teamMate, distToEnemy))
+			closestAgent = min(teamDist, key= lambda x:x[1])[0]
+			return closestAgent
 
 class DefensiveReflexAgent(ReflexCaptureAgent):
 	"""
