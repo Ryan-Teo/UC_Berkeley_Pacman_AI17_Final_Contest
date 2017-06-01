@@ -54,6 +54,16 @@ class ReflexCaptureAgent(CaptureAgent):
     self.start = gameState.getAgentPosition(self.index)
     CaptureAgent.registerInitialState(self, gameState)
 
+    #Find all coords with no walls
+    noWalls = []
+    walls = gameState.getWalls()
+    #will create a list of all spaces with no walls
+    for x in range(walls.width):
+    	for y in range(walls.height):
+    		if walls[x][y] is False:
+    			noWalls.append((x,y))
+    self.notWalls = noWalls
+
   def chooseAction(self, gameState):
     """
     Picks among the actions with the highest Q(s,a).
@@ -80,6 +90,7 @@ class ReflexCaptureAgent(CaptureAgent):
           bestAction = action
           bestDist = dist
       return bestAction
+
 
     return random.choice(bestActions)
 
@@ -136,23 +147,29 @@ class ReflexCaptureAgent(CaptureAgent):
     return features
 
   def getWeights(self, gameState, action):
-	  return{'successorScore':1.0, 'distanceToFood':-10,'food':1000}
+  	"""
+  	Normally, weights do not depend on the gamestate.  They can be either
+  	a counter or a dictionary.
+  	"""
+  	return{'successorScore':1.0, 'distanceToFood':-10,'food':1000}
 
 	def balikKampung(self, gameState):
-		#get line of home
-		#get closest point
-		#go there
-	
-
-
-
+		safeCoords = []
+		width, height = gameState.data.layout.width, gameState.data.layout.height
+		homeLine = width/2
+		if not self.red:
+			homeLine -= 1
+		for y in range(0, height):
+			if (homeLine,y) in self.noWalls:
+				safeCoords.append((homeLine,y))
+    
+    if safeCoords:
+    	return goToCoords(getClosestCoord(safeCoords, gameState), gameState)
+    return None #check for none
 
 # def getWeights(self, gameState, action):
 
-# 	"""
-# 	Normally, weights do not depend on the gamestate.  They can be either
-#   a counter or a dictionary.
-#   """
+
 #   return {'successorScore': 1.0, 'distanceToFood': -10, 'food': 1000}
 
 def highlightEnemy(self, gameState):
@@ -164,11 +181,70 @@ def highlightEnemy(self, gameState):
 	CaptureAgent.debugDraw(self,enemies,[1,0,0], clear = True)
 	return enemies
 
+def goToCoord(self, grace, gameState):
+#Could edit this to take into account weights
+	x,y = grace
+  currentCoord = currentX, currentY = gameState.getAgentState(self.index).getPosition()
+  targetPosition = (x,y)
+  actions = gameState.getLegalActions(self.index)
+  bestActions = []
+  bestAction = None
+  nextCoord = None
+  for action in actions:
+  	print action
+  	if action == "North":
+  		nextCoord = (currentX,currentY+1)
+  	elif action == "East":
+  		nextCoord = (currentX+1,currentY)
+  	elif action == "South":
+  		nextCoord = (currentX,currentY-1)
+  	elif action == "West":
+  		nextCoord = (currentX-1,currentY)
+  	else:
+  		bestAction = action
+  		continue
+  	if self.getMazeDistance(nextCoord, targetPosition) < self.getMazeDistance(currentCoord, targetPosition):
+  		bestAction = action
+  		bestActions.append((action, self.getMazeDistance(nextCoord, targetPosition)))
+  if bestActions:
+  	print "ACTION!!!"
+  	bestAction = max(bestActions, key= lambda x:x[1])[0]
+  else:
+  	print "NO ACTION!!!----------"
+  return bestAction
+
+def getClosestCoord(self, coordList, gameState):
+	currentPosition = gameState.getAgentState(self.index).getPosition()
+	minCoord = None
+	minDist = float('inf')
+	for coord in coordList:
+		if self.getMazeDistance(currentPosition, coord) < minDist:
+			minCoord = coord
+			minDist = self.getMazeDistance(currentPosition, coord)
+	CaptureAgent.debugDraw(self,[minCoord], [1,1,1], clear = False) #REMOVE
+	return minCoord, minDist
+
+def enemyClosestDist(self, gameState):
+	enemies = self.enemyCoord(self, gameState)
+	myPos = gameState.getAgentPosition(self.index)
+	closest = None
+	if len(enemies) != 0:
+		for enemy in enemies:
+			distance = self.getMazeDistance(myPos, enemy)
+			if distance < closest or closest == None:
+				closest = distance
+	return closest
+
+
+
+
   # def highlightSight(self, gameState):
 
 
 
   # def highlightNoise(self, gameState):
+
+
 
 
 
