@@ -173,6 +173,12 @@ class ReflexCaptureAgent(CaptureAgent):
 			features['eatTheFood'] = 1
 			print "eat the food"
 
+		enemies = self.highlightEnemy(gameState)
+		print "enemies around", enemies
+		if enemies:
+			features['eatTheFood'] = 0
+			print "running for life"
+
 		return features
 
 	def getWeights(self, gameState, action):
@@ -196,11 +202,13 @@ class ReflexCaptureAgent(CaptureAgent):
 		return None #check for none
 
 	def highlightEnemy(self, gameState):
+		myPos = gameState.getAgentState(self.index).getPosition()
 		enemies = []
 		for enemy in self.getOpponents(gameState):
-			coord = gameState.getAgentPosition(enemy)
+			coord = gameState.getAgentState(enemy).getPosition()
 			if coord != None:
-				enemies.append(coord)
+				if self.getMazeDistance(myPos, coord)<=2:
+					enemies.append(coord)
 		CaptureAgent.debugDraw(self,enemies,[1,0,0], clear = True)
 		return enemies
 
