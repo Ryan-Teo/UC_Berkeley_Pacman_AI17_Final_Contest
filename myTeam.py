@@ -235,6 +235,15 @@ def enemyClosestDist(self, gameState):
 				closest = distance
 	return closest
 
+def jiakBaBui(self, gameState):
+	#return boolean
+	jiakLo = False
+	oldGameState = self.getPreviousObservation()
+	if CaptureAgent.getFood(self, oldGameState)<CaptureAgent.getFood(self, gameState):
+		jiakLo = True
+	return jiakLo
+
+
 
 
 
