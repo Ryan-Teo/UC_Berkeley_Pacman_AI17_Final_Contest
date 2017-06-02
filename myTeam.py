@@ -106,7 +106,6 @@ class AccidentalIglooAgent(CaptureAgent):
 		if self.enemyEaten(gameState):
 			self.onDefence = False
 			self.target = None
-			print "eaten, reset"
 
 		# check if there is any enemy is our base
 		enemies = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
@@ -160,7 +159,6 @@ class AccidentalIglooAgent(CaptureAgent):
 					bestDist = dist
 			return bestAction
 
-		print "GO ", random.choice(bestActions), self.target
 		return random.choice(bestActions)
 
 	def getSuccessor(self, gameState, action):
@@ -387,7 +385,6 @@ class AccidentalIglooAgent(CaptureAgent):
 		return features
 
 	def getDefenceFeatures(self, gameState, action):
-		print "DEFENCING!!!!!!!!!!!!!!"
 		# if our food is being eaten
 		features = util.Counter()	
 		successor = self.getSuccessor(gameState, action)
@@ -435,7 +432,6 @@ class AccidentalIglooAgent(CaptureAgent):
 			if self.index == closestAgent:
 				# set missing food position as the target
 				self.target = missingFood
-				print "defense for missing food"
 
 		# if there is enemy in our side and we can see where it is
 		if self.onDefence and self.closestEnemy(gameState, 'index'):
@@ -446,9 +442,8 @@ class AccidentalIglooAgent(CaptureAgent):
 				# if we can see the position, set it to target
 				target = enemy
 				if target:
+					# closest agent will return to base and defend
 					self.target = target
-				# closest agent will return to base and defend
-				print "defense for seen enemy", self.target, self.index
 
 		if self.onDefence and self.target:
 			features = self.getDefenceFeatures(gameState, action)
