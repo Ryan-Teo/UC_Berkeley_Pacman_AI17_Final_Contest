@@ -91,28 +91,9 @@ class ReflexCaptureAgent(CaptureAgent):
 		Picks among the actions with the highest Q(s,a).
 		"""
 		actions = gameState.getLegalActions(self.index)
-
-		# You can profile your evaluation time by uncommenting these lines
-		# start = time.time()
-		values = [self.evaluate(gameState, a) for a in actions]
-		# print 'eval time for agent %d: %.4f' % (self.index, time.time() - start)
-
-		maxValue = max(values)
-		bestActions = [a for a, v in zip(actions, values) if v == maxValue]
-
 		foodLeft = len(self.getFood(gameState).asList())
-
-		successor = self.getSuccessor(gameState, random.choice(bestActions))
-		foodList = self.getFood(successor).asList() 
-
 		isPacman = gameState.getAgentState(self.index).isPacman
-
-		# increment when food is eaten
-		if(len(foodList) < foodLeft):
-			if self.food == STARTING_FOOD:
-				self.food = 0
-			self.food += 1
-
+		
 		# when food is deposited as well as 1st started
 		if not isPacman and self.food < float("inf"):
 			self.food = STARTING_FOOD
@@ -120,7 +101,7 @@ class ReflexCaptureAgent(CaptureAgent):
 		self.enemyEaten(gameState)
 
 		# check if there is any enemy is our base
-		enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
+		enemies = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
 		invaders = [a for a in enemies if a.isPacman]
 		if not invaders:
 			self.onDefence = False
@@ -134,10 +115,26 @@ class ReflexCaptureAgent(CaptureAgent):
 				self.onStart = False
 
 		# to prevent both agents going for the same food
-		teammates = [successor.getAgentState(i) for i in self.getTeam(successor)]
+		teammates = [gameState.getAgentState(i) for i in self.getTeam(gameState)]
 		ghosts = [a for a in teammates if not a.isPacman]
 		if len(ghosts) >= 2:
-			self.onStart = True
+			self.onStart = True	
+
+		# You can profile your evaluation time by uncommenting these lines
+		# start = time.time()
+		values = [self.evaluate(gameState, a) for a in actions]
+		# print 'eval time for agent %d: %.4f' % (self.index, time.time() - start)
+
+		maxValue = max(values)
+		bestActions = [a for a, v in zip(actions, values) if v == maxValue]
+		successor = self.getSuccessor(gameState, random.choice(bestActions))
+		foodList = self.getFood(successor).asList() 
+
+		# increment when food is eaten
+		if(len(foodList) < foodLeft):
+			if self.food == STARTING_FOOD:
+				self.food = 0
+			self.food += 1
 
 		if foodLeft <= 2:
 			bestDist = 9999
