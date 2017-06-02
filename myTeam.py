@@ -73,8 +73,6 @@ class AccidentalIglooAgent(CaptureAgent):
 		self.notWalls = noWalls
 		self.walls = walls.asList()
 
-		#Setting food at the begining of the game
-
 		# Updates food and sets self.myFood
 		self.myFood = None
 		self.updateMyFood(gameState)
@@ -347,6 +345,23 @@ class AccidentalIglooAgent(CaptureAgent):
 			features['eatTheFood'] = 1
 			print "eat the food"
 
+		# Compute distance to the nearest food
+		if len(foodList) > 0: # This should always be True,  but better safe than sorry
+			myPos = successor.getAgentState(self.index).getPosition()
+			myTeam = self.getTeam(gameState)
+			# agents going for different food at the start
+			if self.onStart and self.index == min(myTeam):
+				minDistance = self.second_smallest([self.getMazeDistance(myPos, food) for food in foodList])
+			else:
+				minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
+			distanceToHome = self.getMazeDistance(self.start, myPos)
+			# deposit food home when collected enough
+			if self.food == STARTING_FOOD or self.food < self.goal:
+				features['distanceToFood'] = minDistance
+			else:
+				features['distanceToHome'] = distanceToHome
+
+
 		# only check when agent is pacman or about to become pacman
 		isPacman = gameState.getAgentState(self.index).isPacman
 		isGoingToBePacman = successor.getAgentState(self.index).isPacman
@@ -409,6 +424,7 @@ class AccidentalIglooAgent(CaptureAgent):
 		rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
 		if action == rev: features['reverse'] = 1
 
+		# go to the target
 		if self.target:
 			features["distanceToTarget"] = self.getMazeDistance(self.target, myPos)
 
@@ -419,7 +435,6 @@ class AccidentalIglooAgent(CaptureAgent):
 		Returns a counter of features for the state
 		"""
 		successor = self.getSuccessor(gameState, action)
-		features = self.getGeneralFeatures(gameState, action)
 		foodList = self.getFood(successor).asList() 
 
 		missingFood = self.enemyOnOurSide(gameState)
@@ -452,22 +467,8 @@ class AccidentalIglooAgent(CaptureAgent):
 			features = self.getDefenceFeatures(gameState, action)
 			return features
 
-		# Compute distance to the nearest food
-
-		if len(foodList) > 0: # This should always be True,  but better safe than sorry
-			myPos = successor.getAgentState(self.index).getPosition()
-			myTeam = self.getTeam(gameState)
-			# agents going for different food at the start
-			if self.onStart and self.index == min(myTeam):
-				minDistance = self.second_smallest([self.getMazeDistance(myPos, food) for food in foodList])
-			else:
-				minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
-			distanceToHome = self.getMazeDistance(self.start, myPos)
-			if self.food == STARTING_FOOD or self.food < self.goal:
-				features['distanceToFood'] = minDistance
-			else:
-				features['distanceToHome'] = distanceToHome
-
+		# none of the special cases happen, just go generally
+		features = self.getGeneralFeatures(gameState, action)
 		return features
 
 	def getWeights(self, gameState, action):
