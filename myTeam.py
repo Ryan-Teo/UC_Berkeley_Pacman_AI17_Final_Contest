@@ -71,11 +71,10 @@ class ReflexCaptureAgent(CaptureAgent):
 		self.notWalls = noWalls
 
 		#Setting food at the begining of the game
+
+		# Updates food and sets self.myFood
 		self.myFood = None
-		if self.red:
-			self.myFood = gameState.getRedFood().asList()
-		else:
-			self.myFood = gameState.getBlueFood().asList()
+		self.updateMyFood(gameState)
 
 		#Useful agent states	
 		self.missingFood = None
@@ -281,8 +280,17 @@ class ReflexCaptureAgent(CaptureAgent):
 			pastEnemyIndex = self.closestEnemy(previousState, "index")
 			if pastEnemyDistance <= 1 and pastEnemyIndex not in currEnemy:
 			#if enemy was next to me and is not in current range, he's eaten
+				print "jhfjgjhgjggjgjhgjgjhghjghghghhghghghghgg" , self.index
 				eaten = True
+		self.updateMyFood(gameState)
+		print "FOOD LEFT : ---------------------------" ,len(self.myFood) , self.index
 		return eaten
+
+	def updateMyFood(self, gameState):
+		if self.red:
+			self.myFood = gameState.getRedFood().asList()
+		else:
+			self.myFood = gameState.getBlueFood().asList()
 
 	def getGeneralFeatures(self, gameState, action):
 		"""
