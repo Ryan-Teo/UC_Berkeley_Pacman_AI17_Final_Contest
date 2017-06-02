@@ -132,6 +132,12 @@ class ReflexCaptureAgent(CaptureAgent):
 			if isPacman:
 				self.onStart = False
 
+		# to prevent both agents going for the same food
+		teammates = [successor.getAgentState(i) for i in self.getTeam(successor)]
+		ghosts = [a for a in teammates if not a.isPacman]
+		if len(ghosts) >= 2:
+			self.onStart = True
+
 		if foodLeft <= 2:
 			bestDist = 9999
 			for action in actions:
@@ -296,6 +302,19 @@ class ReflexCaptureAgent(CaptureAgent):
 		else:
 			self.myFood = gameState.getBlueFood().asList()
 
+	def deadEndCheck(self, gameState, action):
+		successor = self.getSuccessor(gameState, action)
+		myPos = successor.getAgentState(self.index).getPosition()
+		x, y = myPos
+		check = 0
+		
+		checkPositions = [(x+1, y),(x-1, y),(x, y+1),(x, y-1)]
+		
+		for position in checkPositions:
+			if position in self.walls:
+				check += 1
+		return check
+
 	def getGeneralFeatures(self, gameState, action):
 		"""
 		Returns a counter of features for the state
@@ -346,9 +365,17 @@ class ReflexCaptureAgent(CaptureAgent):
 					features['escape'] = 1
 				else:
 					features['escape'] = 0  
-			
+
 			if features['escape'] != 0:
 				features['eatTheFood'] = 0
+				wallNo = self.deadEndCheck(gameState, action)
+				print 'WALL NO:', wallNo
+				if wallNo >= 3:
+					features['deadEnd'] = 3
+				elif wallNo >= 2:
+					features['deadEnd'] = 2
+				elif wallNo <2 :
+					features['deadEnd'] =0
 		
 			capsuleCoord, capsuleDist = self.capsuleDist(gameState)
 			
@@ -393,7 +420,7 @@ class ReflexCaptureAgent(CaptureAgent):
 		a counter or a dictionary.
 		"""
 		return {'successorScore': 1.0, 'distanceToHome': -10, 'distanceToFood': -10, 'distanceToMissingFood': -10,
-				'food': 50, 'stop': -100, 'eatTheFood': 100, 'escape': -500, 'getCapsule':1000,
+				'food': 50, 'stop': -100, 'eatTheFood': 100, 'escape': -500, 'getCapsule':1000, 'deadEnd': -200,
 				'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'reverse': -2}
 
 class OffensiveReflexAgent(ReflexCaptureAgent):
