@@ -13,6 +13,7 @@
 
 
 from captureAgents import CaptureAgent
+from capture import SCARED_TIME
 import distanceCalculator
 import random, time, util, sys, math
 from game import Directions
@@ -83,6 +84,7 @@ class AccidentalIglooAgent(CaptureAgent):
 		self.onStart = True
 		self.onDefence = False
 		self.onEscape = False
+		self.isPowered = 0
 
 		# useful agent data
 		self.target = None
@@ -179,7 +181,7 @@ class AccidentalIglooAgent(CaptureAgent):
 		"""
 		features = self.getFeatures(gameState, action)
 		weights = self.getWeights(gameState, action)
-		print "action, value", action, features*weights
+		
 		return features * weights
 
 	def enemiesInRange(self, gameState):
@@ -281,10 +283,9 @@ class AccidentalIglooAgent(CaptureAgent):
 			pastEnemyIndex = self.closestEnemy(previousState, "index")
 			if pastEnemyDistance <= 1 and pastEnemyIndex not in currEnemy:
 			#if enemy was next to me and is not in current range, he's eaten
-				print "jhfjgjhgjggjgjhgjgjhghjghghghhghghghghgg" , self.index
 				eaten = True
 		self.updateMyFood(gameState)
-		print "FOOD LEFT : ---------------------------" ,len(self.myFood) , self.index
+		
 		return eaten
 
 	def updateMyFood(self, gameState):
@@ -344,31 +345,33 @@ class AccidentalIglooAgent(CaptureAgent):
 		myIntPos = (int(floatX), int(floatY))
 		if myIntPos in currentFoodList:
 			features['eatTheFood'] = 1
-			print "eat the food"
-
+		
+		if myPos in self.getCapsules(gameState):
+			self.isPowered = SCARED_TIME
+    
+		if self.isPowered>0:
+			self.isPowered -= 1
+		
 		# only check when agent is pacman or about to become pacman
 		isPacman = gameState.getAgentState(self.index).isPacman
 		isGoingToBePacman = successor.getAgentState(self.index).isPacman
 		if isPacman or isGoingToBePacman:
 			enemies = self.enemiesInRange(gameState)
-			print "enemies around", enemies
 			if enemies:
 				features['eatTheFood'] = 0
-				print "running for life"
-
+	
 			enemyDanger= self.closestEnemy(successor, "distance")	
-			if(enemyDanger != None):
+			if(enemyDanger != None and self.isPowered < 6):
 				if(enemyDanger <= 4):
 					features['escape'] = 8/enemyDanger
 				elif(enemyDanger <= 8):
 					features['escape'] = 1
 				else:
 					features['escape'] = 0  
-
+			
 			if features['escape'] != 0:
 				features['eatTheFood'] = 0
 				wallNo = self.deadEndCheck(gameState, action)
-				print 'WALL NO:', wallNo
 				if wallNo >= 3:
 					features['deadEnd'] = 3
 				elif wallNo >= 2:
