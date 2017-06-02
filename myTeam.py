@@ -83,6 +83,7 @@ class AccidentalIglooAgent(CaptureAgent):
 		self.onStart = True
 		self.onDefence = False
 		self.onEscape = False
+		self.isPowered = 0
 
 		# useful agent data
 		self.target = None
