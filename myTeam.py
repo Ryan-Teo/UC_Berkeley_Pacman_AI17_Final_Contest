@@ -81,7 +81,6 @@ class AccidentalIglooAgent(CaptureAgent):
 		#Useful agent states	
 		self.onStart = True
 		self.onDefence = False
-		self.onEscape = False
 		self.isPowered = 0
 
 		# useful agent data
@@ -206,18 +205,6 @@ class AccidentalIglooAgent(CaptureAgent):
 		ghosts = [a for a in teammates if not a.isPacman]
 		if len(ghosts) >= 2:
 			self.onStart = True	
-
-		# reset escape mode when reach home
-		if not isPacman:
-			self.onEscape = False
-
-		# run away when enemy in vision
-		enemyDistance = self.closestEnemy(gameState, 'distance') 
-		if enemyDistance and enemyDistance < SAFE_DISTANCE:
-			print self.enemiesInRange(gameState), "WHATTTTTT"
-			self.onEscape = True
-		else:
-			self.onEscape = False
 
 	def enemiesInRange(self, gameState):
 		myPos = gameState.getAgentState(self.index).getPosition()
@@ -462,44 +449,6 @@ class AccidentalIglooAgent(CaptureAgent):
 
 		return features
 
-	def getEscapeFeatures(self, gameState, action):
-		print "running away", self.index
-		features = util.Counter()
-		successor = self.getSuccessor(gameState, action)
-		myPos = successor.getAgentState(self.index).getPosition()
-
-		# head home when being chased
-		distanceToHome = self.getMazeDistance(self.start, myPos)
-		features['distanceToHome'] = distanceToHome
-
-		# get away from ghost
-		enemyDanger= self.closestEnemy(successor, "distance")	
-		features['distanceToGhost'] = enemyDanger
-
-		# if(enemyDanger != None):
-		# 	if(enemyDanger <= 4):
-		# 		features['escape'] = 8/enemyDanger
-		# 	elif(enemyDanger <= 8):
-		# 		features['escape'] = 1
-		# 	else:
-		# 		features['escape'] = 0  
-
-		# if features['escape'] != 0:
-		# 	wallNo = self.deadEndCheck(gameState, action)
-		# 	if wallNo >= 3:
-		# 		features['deadEnd'] = 3
-		# 	elif wallNo >= 2:
-		# 		features['deadEnd'] = 2
-		# 	elif wallNo <2 :
-		# 		features['deadEnd'] =0
-	
-		# capsuleCoord, capsuleDist = self.capsuleDist(gameState)
-		
-		# if capsuleDist < enemyDanger - SAFE_DISTANCE:
-		# 	features['getCapsule'] = 1
-
-		return features
-
 	def getFeatures(self, gameState, action):
 		"""
 		Returns a counter of features for the state
@@ -508,16 +457,6 @@ class AccidentalIglooAgent(CaptureAgent):
 		if self.onDefence and self.target:
 			features = self.getDefenceFeatures(gameState, action)
 			return features
-
-		# when agent is pacman or about to become pacman
-		# successor = self.getSuccessor(gameState, action)
-		# isPacman = gameState.getAgentState(self.index).isPacman
-		# isGoingToBePacman = successor.getAgentState(self.index).isPacman
-		# if isPacman or isGoingToBePacman:
-		# 	# check if we are on escape
-		# 	if self.onEscape:
-		# 		features = self.getEscapeFeatures(gameState, action)
-		# 		return features
 
 		# none of the special cases happen, just go generally
 		features = self.getGeneralFeatures(gameState, action)
@@ -529,4 +468,4 @@ class AccidentalIglooAgent(CaptureAgent):
 		a counter or a dictionary.
 		"""
 		return {'successorScore': 1.0, 'food': 50, 'stop': -100, 'eatTheFood': 100, 'escape': -500, 'getCapsule':1000, 'deadEnd': -200,
-				'distanceToHome': -10, 'distanceToFood': -10, 'distanceToTarget': -10, 'distanceToPartner': 8, 'distanceToGhost': 10}
+				'distanceToHome': -10, 'distanceToFood': -10, 'distanceToTarget': -10, 'distanceToPartner': 8}
