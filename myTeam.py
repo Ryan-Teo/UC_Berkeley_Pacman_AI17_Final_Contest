@@ -69,6 +69,7 @@ class ReflexCaptureAgent(CaptureAgent):
 				if walls[x][y] is False:
 					noWalls.append((x,y))
 		self.notWalls = noWalls
+		self.walls = walls.asList()
 
 		#Setting food at the begining of the game
 
