@@ -78,7 +78,7 @@ class ReflexCaptureAgent(CaptureAgent):
 		self.updateMyFood(gameState)
 
 		#Useful agent states	
-		self.targer = None
+		self.target = None
 		self.onStart = True
 		self.onDefence = False
 		self.onEscape = False
@@ -98,15 +98,19 @@ class ReflexCaptureAgent(CaptureAgent):
 		if not isPacman and self.food < float("inf"):
 			self.food = STARTING_FOOD
 
-		self.enemyEaten(gameState)
+		# reset target and mode when enemy is eaten
+		if self.enemyEaten(gameState):
+			self.onDefence = False
+			self.target = None
+			print "eaten, reset"
 
 		# check if there is any enemy is our base
 		enemies = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
 		invaders = [a for a in enemies if a.isPacman]
 		if not invaders:
 			self.onDefence = False
-			self.targer = None
-		elif self.defensive:
+			self.target = None
+		else:
 			self.onDefence = True
 
 		# make it false once it passes the border
@@ -147,7 +151,7 @@ class ReflexCaptureAgent(CaptureAgent):
 					bestDist = dist
 			return bestAction
 
-		print "GO ", random.choice(bestActions)
+		print "GO ", random.choice(bestActions), self.target
 		return random.choice(bestActions)
 
 	def getSuccessor(self, gameState, action):
@@ -375,7 +379,6 @@ class ReflexCaptureAgent(CaptureAgent):
 
 	def getDefenceFeatures(self, gameState, action):
 		# if our food is being eaten
-		print "GO DEFENSE"
 		features = util.Counter()	
 		successor = self.getSuccessor(gameState, action)
 
@@ -398,8 +401,8 @@ class ReflexCaptureAgent(CaptureAgent):
 		rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
 		if action == rev: features['reverse'] = 1
 
-		if self.targer:
-			features["distanceToMissingFood"] = self.getMazeDistance(self.targer, myPos)
+		if self.target:
+			features["distanceToTarget"] = self.getMazeDistance(self.target, myPos)
 
 		return features
 
@@ -408,7 +411,7 @@ class ReflexCaptureAgent(CaptureAgent):
 		Normally, weights do not depend on the gamestate.  They can be either
 		a counter or a dictionary.
 		"""
-		return {'successorScore': 1.0, 'distanceToHome': -10, 'distanceToFood': -10, 'distanceToMissingFood': -10,
+		return {'successorScore': 1.0, 'distanceToHome': -10, 'distanceToFood': -10, 'distanceToTarget': -10,
 				'food': 50, 'stop': -100, 'eatTheFood': 100, 'escape': -500, 'getCapsule':1000, 'deadEnd': -200,
 				'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'reverse': -2}
 
@@ -433,18 +436,31 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
 		myState = successor.getAgentState(self.index)
 		myPos = myState.getPosition()
 
-		if missingFood and not self.targer == missingFood:
-			self.targer = missingFood
+		# if there is missing food and target is not missing food
+		if missingFood and not self.target == missingFood:
 			# check if this agent is closer
-			closestAgent = self.closestAgent(gameState, self.targer)
+			closestAgent = self.closestAgent(gameState, self.target)
 			if self.index == closestAgent:
-				# closest agent will return to base and defend
-				self.onDefence = True
-				features = self.getDefenceFeatures(gameState, action)
-				return features
+				# set missing food position as the target
+				self.target = missingFood
+				print "defense for missing food"
 
-		if self.onDefence:
-			return self.getDefenceFeatures(gameState, action)
+		# if there is enemy in our side and we can see where it is
+		if self.onDefence and self.closestEnemy(gameState, 'index'):
+			# check if this agent is closer to enemy
+			enemy = self.closestEnemy(gameState, 'coord')
+			closestAgent = self.closestAgent(gameState, enemy)
+			if self.index == closestAgent:
+				# if we can see the position, set it to target
+				target = enemy
+				if target:
+					self.target = target
+				# closest agent will return to base and defend
+				print "defense for seen enemy", self.target, self.index
+
+		if self.onDefence and self.target:
+			features = self.getDefenceFeatures(gameState, action)
+			return features
 
 		# Compute distance to the nearest food
 
@@ -495,17 +511,31 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
 		myState = successor.getAgentState(self.index)
 		myPos = myState.getPosition()
 
-		if missingFood and not self.targer == missingFood:
-			self.targer = missingFood
+		# if there is missing food and target is not missing food
+		if missingFood and not self.target == missingFood:
 			# check if this agent is closer
-			closestAgent = self.closestAgent(gameState, self.targer)
+			closestAgent = self.closestAgent(gameState, self.target)
 			if self.index == closestAgent:
-				self.onDefence = True
-				features = self.getDefenceFeatures(gameState, action)
-				return features
+				# set missing food position as the target
+				self.target = missingFood
+				print "defense for missing food"
 
-		if self.onDefence:
-			return self.getDefenceFeatures(gameState, action)
+		# if there is enemy in our side and we can see where it is
+		if self.onDefence and self.closestEnemy(gameState, 'index'):
+			# check if this agent is closer to enemy
+			enemy = self.closestEnemy(gameState, 'coord')
+			closestAgent = self.closestAgent(gameState, enemy)
+			if self.index == closestAgent:
+				# if we can see the position, set it to target
+				target = enemy
+				if target:
+					self.target = target
+				# closest agent will return to base and defend
+				print "defense for seen enemy", self.target, self.index
+
+		if self.onDefence and self.target:
+			features = self.getDefenceFeatures(gameState, action)
+			return features
 
 		# Compute distance to the nearest food
 
