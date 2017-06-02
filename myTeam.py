@@ -23,7 +23,7 @@ STARTING_FOOD = float("-inf")
 STARTING_GOAL = 1
 LUXURY_GOAL = 3
 STABLE_SCORE = 8
-SAFE_DISTANCE = 3
+SAFE_DISTANCE = 4
 
 # DISCLAIMER
 # Some methods taken from baselineTeam.py
@@ -157,6 +157,7 @@ class AccidentalIglooAgent(CaptureAgent):
 		features = self.getFeatures(gameState, action)
 		weights = self.getWeights(gameState, action)
 
+		print "GO ------", action, features * weights, self.index
 		return features * weights
 
 	def setTarget(self, gameState):
@@ -179,6 +180,8 @@ class AccidentalIglooAgent(CaptureAgent):
 			self.target = None
 
 	def checkMode(self, gameState):
+		isPacman = gameState.getAgentState(self.index).isPacman
+
 		# reset target and mode when enemy is eaten
 		if self.enemyEaten(gameState):
 			self.onDefence = False
@@ -195,7 +198,7 @@ class AccidentalIglooAgent(CaptureAgent):
 			self.onDefence = True
 
 		# make it false once it passes the border
-		if self.onStart and gameState.getAgentState(self.index).isPacman:
+		if self.onStart and isPacman:
 			self.onStart = False
 
 		# to prevent both agents going for the same food
@@ -203,6 +206,18 @@ class AccidentalIglooAgent(CaptureAgent):
 		ghosts = [a for a in teammates if not a.isPacman]
 		if len(ghosts) >= 2:
 			self.onStart = True	
+
+		# reset escape mode when reach home
+		if not isPacman:
+			self.onEscape = False
+
+		# run away when enemy in vision
+		enemyDistance = self.closestEnemy(gameState, 'distance') 
+		if enemyDistance and enemyDistance < SAFE_DISTANCE:
+			print self.enemiesInRange(gameState), "WHATTTTTT"
+			self.onEscape = True
+		else:
+			self.onEscape = False
 
 	def enemiesInRange(self, gameState):
 		myPos = gameState.getAgentState(self.index).getPosition()
@@ -326,6 +341,16 @@ class AccidentalIglooAgent(CaptureAgent):
 				check += 1
 		return check
 
+	def distanceBetweenPartner(self, gameState):
+		# calculate distance between partner
+		team = self.getTeam(gameState)
+		for teammate in team:
+			if not teammate == self.index:
+				myPos = gameState.getAgentState(self.index).getPosition()
+				matePos = gameState.getAgentState(teammate).getPosition()
+				distance = self.getMazeDistance(myPos, matePos)
+				return distance
+
 	# from stack overflow 
 	# https://stackoverflow.com/questions/26779618/python-find-second-smallest-number
 	def second_smallest(self, numbers):
@@ -346,8 +371,10 @@ class AccidentalIglooAgent(CaptureAgent):
 		foodList = self.getFood(successor).asList() 
 		currentFoodList = self.getFood(gameState).asList() 
 		myPos = successor.getAgentState(self.index).getPosition()
+		distanceToHome = self.getMazeDistance(self.start, myPos)
 
 		features['successorScore'] = self.getScore(successor)
+		features['distanceToPartner'] = self.distanceBetweenPartner(successor)
 
 		# if food is there
 		if not len(foodList) == len(currentFoodList):
@@ -374,7 +401,6 @@ class AccidentalIglooAgent(CaptureAgent):
 				minDistance = self.second_smallest([self.getMazeDistance(myPos, food) for food in foodList])
 			else:
 				minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
-			distanceToHome = self.getMazeDistance(self.start, myPos)
 			# deposit food home when collected enough
 			if self.food == STARTING_FOOD or self.food < self.goal:
 				features['distanceToFood'] = minDistance
@@ -398,6 +424,7 @@ class AccidentalIglooAgent(CaptureAgent):
 					features['escape'] = 1
 				else:
 					features['escape'] = 0  
+				features['distanceToHome'] = distanceToHome
 
 			if features['escape'] != 0:
 				features['eatTheFood'] = 0
@@ -435,20 +462,62 @@ class AccidentalIglooAgent(CaptureAgent):
 
 		return features
 
+	def getEscapeFeatures(self, gameState, action):
+		print "running away", self.index
+		features = util.Counter()
+		successor = self.getSuccessor(gameState, action)
+		myPos = successor.getAgentState(self.index).getPosition()
+
+		# head home when being chased
+		distanceToHome = self.getMazeDistance(self.start, myPos)
+		features['distanceToHome'] = distanceToHome
+
+		# get away from ghost
+		enemyDanger= self.closestEnemy(successor, "distance")	
+		features['distanceToGhost'] = enemyDanger
+
+		# if(enemyDanger != None):
+		# 	if(enemyDanger <= 4):
+		# 		features['escape'] = 8/enemyDanger
+		# 	elif(enemyDanger <= 8):
+		# 		features['escape'] = 1
+		# 	else:
+		# 		features['escape'] = 0  
+
+		# if features['escape'] != 0:
+		# 	wallNo = self.deadEndCheck(gameState, action)
+		# 	if wallNo >= 3:
+		# 		features['deadEnd'] = 3
+		# 	elif wallNo >= 2:
+		# 		features['deadEnd'] = 2
+		# 	elif wallNo <2 :
+		# 		features['deadEnd'] =0
+	
+		# capsuleCoord, capsuleDist = self.capsuleDist(gameState)
+		
+		# if capsuleDist < enemyDanger - SAFE_DISTANCE:
+		# 	features['getCapsule'] = 1
+
+		return features
+
 	def getFeatures(self, gameState, action):
 		"""
 		Returns a counter of features for the state
 		"""
-		successor = self.getSuccessor(gameState, action)
-		foodList = self.getFood(successor).asList() 
-
-		myState = successor.getAgentState(self.index)
-		myPos = myState.getPosition()
-
 		# if we are on defence and target is set
 		if self.onDefence and self.target:
 			features = self.getDefenceFeatures(gameState, action)
 			return features
+
+		# when agent is pacman or about to become pacman
+		# successor = self.getSuccessor(gameState, action)
+		# isPacman = gameState.getAgentState(self.index).isPacman
+		# isGoingToBePacman = successor.getAgentState(self.index).isPacman
+		# if isPacman or isGoingToBePacman:
+		# 	# check if we are on escape
+		# 	if self.onEscape:
+		# 		features = self.getEscapeFeatures(gameState, action)
+		# 		return features
 
 		# none of the special cases happen, just go generally
 		features = self.getGeneralFeatures(gameState, action)
@@ -459,5 +528,5 @@ class AccidentalIglooAgent(CaptureAgent):
 		Normally, weights do not depend on the gamestate.  They can be either
 		a counter or a dictionary.
 		"""
-		return {'successorScore': 1.0, 'distanceToHome': -10, 'distanceToFood': -10, 'distanceToTarget': -10,
-				'food': 50, 'stop': -100, 'eatTheFood': 100, 'escape': -500, 'getCapsule':1000, 'deadEnd': -200}
+		return {'successorScore': 1.0, 'food': 50, 'stop': -100, 'eatTheFood': 100, 'escape': -500, 'getCapsule':1000, 'deadEnd': -200,
+				'distanceToHome': -10, 'distanceToFood': -10, 'distanceToTarget': -10, 'distanceToPartner': 8, 'distanceToGhost': 10}
