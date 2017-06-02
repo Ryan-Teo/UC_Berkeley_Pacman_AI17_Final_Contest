@@ -78,8 +78,12 @@ class ReflexCaptureAgent(CaptureAgent):
 
 		#Useful agent states	
 		self.missingFood = None
-		self.onDefence = False
 		self.onStart = True
+		self.onDefence = False
+		self.onEscape = False
+
+		self.defensive = False
+		self.registerDefensiveAgent()
 
 	def chooseAction(self, gameState):
 		"""
@@ -120,7 +124,7 @@ class ReflexCaptureAgent(CaptureAgent):
 		if not invaders:
 			self.onDefence = False
 			self.missingFood = None
-		else:
+		elif self.defensive:
 			self.onDefence = True
 
 		# make it false once it passes the border
@@ -383,12 +387,24 @@ class ReflexCaptureAgent(CaptureAgent):
 
 		return features
 
+	def getWeights(self, gameState, action):
+		"""
+		Normally, weights do not depend on the gamestate.  They can be either
+		a counter or a dictionary.
+		"""
+		return {'successorScore': 1.0, 'distanceToHome': -10, 'distanceToFood': -10, 'distanceToMissingFood': -10,
+				'food': 50, 'stop': -100, 'eatTheFood': 100, 'escape': -500, 'getCapsule':1000,
+				'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'reverse': -2}
+
 class OffensiveReflexAgent(ReflexCaptureAgent):
 	"""
 	A reflex agent that seeks food. This is an agent
 	we give you to get an idea of what an offensive agent might look like,
 	but it is by no means the best or only way to build an offensive agent.
 	"""
+	def registerDefensiveAgent(self):
+		self.defensive = False
+
 	def getFeatures(self, gameState, action):
 		"""
 		Returns a counter of features for the state
@@ -411,6 +427,9 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
 				features = self.getDefenceFeatures(gameState, action)
 				return features
 
+		if self.onDefence:
+			return self.getDefenceFeatures(gameState, action)
+
 		# Compute distance to the nearest food
 
 		if len(foodList) > 0: # This should always be True,  but better safe than sorry
@@ -420,21 +439,12 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
 			else:
 				minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
 			distanceToHome = self.getMazeDistance(self.start, myPos)
-			if self.food == STARTING_FOOD or self.food < 1:
+			if self.food == STARTING_FOOD or self.food < 3:
 				features['distanceToFood'] = minDistance
 			else:
 				features['distanceToHome'] = distanceToHome
 
 		return features
-
-	def getWeights(self, gameState, action):
-		"""
-		Normally, weights do not depend on the gamestate.  They can be either
-		a counter or a dictionary.
-		"""
-		return {'successorScore': 1.0, 'distanceToHome': -10, 'distanceToFood': -10, 'distanceToMissingFood': -10,
-				'food': 50, 'stop': -100, 'eatTheFood': 100, 'escape': -500, 'getCapsule':1000,
-				'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'reverse': -2}
 
 	def second_smallest(self, numbers):
 		m1, m2 = float('inf'), float('inf')
@@ -452,6 +462,9 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
 	could be like.  It is not the best or only way to make
 	such an agent.
 	"""
+	def registerDefensiveAgent(self):
+		self.defensive = True
+
 	def getFeatures(self, gameState, action):
 		"""
 		Returns a counter of features for the state
@@ -488,11 +501,3 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
 				features['distanceToHome'] = distanceToHome
 
 		return features
-
-	def getWeights(self, gameState, action):
-		"""
-		Normally, weights do not depend on the gamestate.  They can be either
-		a counter or a dictionary.
-		"""
-		return {'successorScore': 1.0, 'distanceToHome': -10, 'distanceToFood': -10, 'distanceToMissingFood': -10,
-				'food': 50, 'stop': -100, 'eatTheFood': 100, 'escape': -500, 'getCapsule':1000}
