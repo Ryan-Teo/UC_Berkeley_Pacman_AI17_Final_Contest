@@ -23,6 +23,7 @@ STARTING_FOOD = float("-inf")
 STARTING_GOAL = 1
 LUXURY_GOAL = 3
 STABLE_SCORE = 8
+SAFE_DISTANCE = 3
 
 # DISCLAIMER
 # Some methods taken from baselineTeam.py
@@ -99,31 +100,8 @@ class AccidentalIglooAgent(CaptureAgent):
 		if not isPacman and self.food < float("inf"):
 			self.food = STARTING_FOOD
 
-		# reset target and mode when enemy is eaten
-		if self.enemyEaten(gameState):
-			self.onDefence = False
-			self.target = None
-			print "eaten, reset"
-
-		# check if there is any enemy is our base
-		enemies = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
-		invaders = [a for a in enemies if a.isPacman]
-		if not invaders:
-			self.onDefence = False
-			self.target = None
-		else:
-			self.onDefence = True
-
-		# make it false once it passes the border
-		if self.onStart:
-			if isPacman:
-				self.onStart = False
-
-		# to prevent both agents going for the same food
-		teammates = [gameState.getAgentState(i) for i in self.getTeam(gameState)]
-		ghosts = [a for a in teammates if not a.isPacman]
-		if len(ghosts) >= 2:
-			self.onStart = True	
+		self.setTarget(gameState)
+		self.checkMode(gameState)
 
 		# increase goal when score is stable
 		score = self.getScore(gameState)
@@ -178,15 +156,60 @@ class AccidentalIglooAgent(CaptureAgent):
 		"""
 		features = self.getFeatures(gameState, action)
 		weights = self.getWeights(gameState, action)
-		print "action, value", action, features*weights
+
 		return features * weights
+
+	def setTarget(self, gameState):
+		# if there is missing food and it is closer to this agent
+		missingFood = self.enemyOnOurSide(gameState)
+		if missingFood and self.closestAgent(gameState, missingFood):
+			# set missing food position as the target
+			self.target = missingFood
+
+		# if we see an enemy on our side and this agent is closer
+		enemyIndex = self.closestEnemy(gameState, 'index')
+		enemyPos = self.closestEnemy(gameState, 'coord')
+		if self.onDefence and self.closestAgent(gameState, enemyPos) and gameState.getAgentState(enemyIndex).isPacman:
+			# set enemy's coordinate as target
+			self.target = enemyPos
+
+		# if already reach that position, reset
+		myPos = gameState.getAgentState(self.index).getPosition()
+		if self.target == myPos:
+			self.target = None
+
+	def checkMode(self, gameState):
+		# reset target and mode when enemy is eaten
+		if self.enemyEaten(gameState):
+			self.onDefence = False
+			self.target = None
+			print "eaten, reset"
+
+		# check if there is any enemy is our base
+		enemies = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
+		invaders = [a for a in enemies if a.isPacman]
+		if not invaders:
+			self.onDefence = False
+			self.target = None
+		else:
+			self.onDefence = True
+
+		# make it false once it passes the border
+		if self.onStart and gameState.getAgentState(self.index).isPacman:
+			self.onStart = False
+
+		# to prevent both agents going for the same food
+		teammates = [gameState.getAgentState(i) for i in self.getTeam(gameState)]
+		ghosts = [a for a in teammates if not a.isPacman]
+		if len(ghosts) >= 2:
+			self.onStart = True	
 
 	def enemiesInRange(self, gameState):
 		myPos = gameState.getAgentState(self.index).getPosition()
 		enemies = []
 		for enemy in self.getOpponents(gameState):
 			coord = gameState.getAgentState(enemy).getPosition()
-			if coord != None:
+			if coord != None and self.getMazeDistance(myPos, coord) < SAFE_DISTANCE:
 				enemies.append(coord)
 		return enemies
 
@@ -255,7 +278,7 @@ class AccidentalIglooAgent(CaptureAgent):
 		return missingFood
 		
 	def closestAgent(self, gameState, targetPos):
-		#for missingFood, check if return value == self.index
+		# check if return value == self.index
 		if targetPos is None:
 			return False
 		else:
@@ -265,7 +288,7 @@ class AccidentalIglooAgent(CaptureAgent):
 				distToEnemy = self.getMazeDistance(gameState.getAgentPosition(teamMate),targetPos)
 				teamDist.append((teamMate, distToEnemy))
 			closestAgent = min(teamDist, key= lambda x:x[1])[0]
-			return closestAgent
+			return closestAgent == self.index
 
 	def enemyEaten(self, gameState):
 		eaten = False
@@ -280,10 +303,8 @@ class AccidentalIglooAgent(CaptureAgent):
 			pastEnemyIndex = self.closestEnemy(previousState, "index")
 			if pastEnemyDistance <= 1 and pastEnemyIndex not in currEnemy:
 			#if enemy was next to me and is not in current range, he's eaten
-				print "jhfjgjhgjggjgjhgjgjhghjghghghhghghghghgg" , self.index
 				eaten = True
 		self.updateMyFood(gameState)
-		print "FOOD LEFT : ---------------------------" ,len(self.myFood) , self.index
 		return eaten
 
 	def updateMyFood(self, gameState):
@@ -343,7 +364,6 @@ class AccidentalIglooAgent(CaptureAgent):
 		myIntPos = (int(floatX), int(floatY))
 		if myIntPos in currentFoodList:
 			features['eatTheFood'] = 1
-			print "eat the food"
 
 		# Compute distance to the nearest food
 		if len(foodList) > 0: # This should always be True,  but better safe than sorry
@@ -361,13 +381,11 @@ class AccidentalIglooAgent(CaptureAgent):
 			else:
 				features['distanceToHome'] = distanceToHome
 
-
 		# only check when agent is pacman or about to become pacman
 		isPacman = gameState.getAgentState(self.index).isPacman
 		isGoingToBePacman = successor.getAgentState(self.index).isPacman
 		if isPacman or isGoingToBePacman:
 			enemies = self.enemiesInRange(gameState)
-			print "enemies around", enemies
 			if enemies:
 				features['eatTheFood'] = 0
 				print "running for life"
@@ -400,29 +418,16 @@ class AccidentalIglooAgent(CaptureAgent):
 		return features
 
 	def getDefenceFeatures(self, gameState, action):
-		print "DEFENCING!!!!!!!!!!!!!!"
-		# if our food is being eaten
+		# if there is enemy in our side
 		features = util.Counter()	
 		successor = self.getSuccessor(gameState, action)
 
 		myState = successor.getAgentState(self.index)
 		myPos = myState.getPosition() 
 
-		# Computes whether we're on defense (1) or offense (0)
-		features['onDefense'] = 1
-		if myState.isPacman: features['onDefense'] = 0
-
-		# Computes distance to invaders we can see
-		enemies = [successor.getAgentState(i) for i in self.getOpponents(successor)]
-		invaders = [a for a in enemies if a.isPacman and a.getPosition() != None]
-		features['numInvaders'] = len(invaders)
-		if len(invaders) > 0:
-			dists = [self.getMazeDistance(myPos, a.getPosition()) for a in invaders]
-			features['invaderDistance'] = min(dists)
-
-		if action == Directions.STOP: features['stop'] = 1
-		rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
-		if action == rev: features['reverse'] = 1
+		# prevent it to stop
+		if action == Directions.STOP: 
+			features['stop'] = 1
 
 		# go to the target
 		if self.target:
@@ -437,32 +442,10 @@ class AccidentalIglooAgent(CaptureAgent):
 		successor = self.getSuccessor(gameState, action)
 		foodList = self.getFood(successor).asList() 
 
-		missingFood = self.enemyOnOurSide(gameState)
 		myState = successor.getAgentState(self.index)
 		myPos = myState.getPosition()
 
-		# if there is missing food and target is not missing food
-		if missingFood and not self.target == missingFood:
-			# check if this agent is closer
-			closestAgent = self.closestAgent(gameState, self.target)
-			if self.index == closestAgent:
-				# set missing food position as the target
-				self.target = missingFood
-				print "defense for missing food"
-
-		# if there is enemy in our side and we can see where it is
-		if self.onDefence and self.closestEnemy(gameState, 'index'):
-			# check if this agent is closer to enemy
-			enemy = self.closestEnemy(gameState, 'coord')
-			closestAgent = self.closestAgent(gameState, enemy)
-			if self.index == closestAgent:
-				# if we can see the position, set it to target
-				target = enemy
-				if target:
-					self.target = target
-				# closest agent will return to base and defend
-				print "defense for seen enemy", self.target, self.index
-
+		# if we are on defence and target is set
 		if self.onDefence and self.target:
 			features = self.getDefenceFeatures(gameState, action)
 			return features
@@ -477,5 +460,4 @@ class AccidentalIglooAgent(CaptureAgent):
 		a counter or a dictionary.
 		"""
 		return {'successorScore': 1.0, 'distanceToHome': -10, 'distanceToFood': -10, 'distanceToTarget': -10,
-				'food': 50, 'stop': -100, 'eatTheFood': 100, 'escape': -500, 'getCapsule':1000, 'deadEnd': -200,
-				'numInvaders': -1000, 'onDefense': 100, 'invaderDistance': -10, 'reverse': -2}
+				'food': 50, 'stop': -100, 'eatTheFood': 100, 'escape': -500, 'getCapsule':1000, 'deadEnd': -200}
