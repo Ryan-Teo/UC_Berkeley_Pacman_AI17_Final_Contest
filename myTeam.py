@@ -78,7 +78,7 @@ class ReflexCaptureAgent(CaptureAgent):
 		self.updateMyFood(gameState)
 
 		#Useful agent states	
-		self.missingFood = None
+		self.targer = None
 		self.onStart = True
 		self.onDefence = False
 		self.onEscape = False
@@ -93,7 +93,7 @@ class ReflexCaptureAgent(CaptureAgent):
 		actions = gameState.getLegalActions(self.index)
 		foodLeft = len(self.getFood(gameState).asList())
 		isPacman = gameState.getAgentState(self.index).isPacman
-		
+
 		# when food is deposited as well as 1st started
 		if not isPacman and self.food < float("inf"):
 			self.food = STARTING_FOOD
@@ -105,7 +105,7 @@ class ReflexCaptureAgent(CaptureAgent):
 		invaders = [a for a in enemies if a.isPacman]
 		if not invaders:
 			self.onDefence = False
-			self.missingFood = None
+			self.targer = None
 		elif self.defensive:
 			self.onDefence = True
 
@@ -180,13 +180,6 @@ class ReflexCaptureAgent(CaptureAgent):
 		features['successorScore'] = self.getScore(successor)
 		return features
 
-	def getWeights(self, gameState, action):
-		"""
-		Normally, weights do not depend on the gamestate.  They can be either
-		a counter or a dictionary.
-		"""
-		return {'successorScore': 1.0}
-
 	def enemiesInRange(self, gameState):
 		myPos = gameState.getAgentState(self.index).getPosition()
 		enemies = []
@@ -194,7 +187,6 @@ class ReflexCaptureAgent(CaptureAgent):
 			coord = gameState.getAgentState(enemy).getPosition()
 			if coord != None:
 				enemies.append(coord)
-		# CaptureAgent.debugDraw(self,enemies,[1,0,0], clear = True)
 		return enemies
 
 	def getClosestCoord(self, coordList, gameState):
@@ -205,7 +197,6 @@ class ReflexCaptureAgent(CaptureAgent):
 			if self.getMazeDistance(currentPosition, coord) < minDist:
 				minCoord = coord
 				minDist = self.getMazeDistance(currentPosition, coord)
-		# CaptureAgent.debugDraw(self,[minCoord], [1,1,1], clear = False) #REMOVE
 		return minCoord, minDist
 
 	def enemyCoord(self, gameState):
@@ -407,8 +398,8 @@ class ReflexCaptureAgent(CaptureAgent):
 		rev = Directions.REVERSE[gameState.getAgentState(self.index).configuration.direction]
 		if action == rev: features['reverse'] = 1
 
-		if self.missingFood:
-			features["distanceToMissingFood"] = self.getMazeDistance(self.missingFood, myPos)
+		if self.targer:
+			features["distanceToMissingFood"] = self.getMazeDistance(self.targer, myPos)
 
 		return features
 
@@ -442,10 +433,10 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
 		myState = successor.getAgentState(self.index)
 		myPos = myState.getPosition()
 
-		if missingFood and not self.missingFood == missingFood:
-			self.missingFood = missingFood
+		if missingFood and not self.targer == missingFood:
+			self.targer = missingFood
 			# check if this agent is closer
-			closestAgent = self.closestAgent(gameState, self.missingFood)
+			closestAgent = self.closestAgent(gameState, self.targer)
 			if self.index == closestAgent:
 				# closest agent will return to base and defend
 				self.onDefence = True
@@ -471,6 +462,8 @@ class OffensiveReflexAgent(ReflexCaptureAgent):
 
 		return features
 
+	# from stack overflow 
+	# https://stackoverflow.com/questions/26779618/python-find-second-smallest-number
 	def second_smallest(self, numbers):
 		m1, m2 = float('inf'), float('inf')
 		for x in numbers:
@@ -502,10 +495,10 @@ class DefensiveReflexAgent(ReflexCaptureAgent):
 		myState = successor.getAgentState(self.index)
 		myPos = myState.getPosition()
 
-		if missingFood and not self.missingFood == missingFood:
-			self.missingFood = missingFood
+		if missingFood and not self.targer == missingFood:
+			self.targer = missingFood
 			# check if this agent is closer
-			closestAgent = self.closestAgent(gameState, self.missingFood)
+			closestAgent = self.closestAgent(gameState, self.targer)
 			if self.index == closestAgent:
 				self.onDefence = True
 				features = self.getDefenceFeatures(gameState, action)
