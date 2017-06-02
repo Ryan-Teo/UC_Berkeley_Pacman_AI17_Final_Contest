@@ -60,7 +60,6 @@ class AccidentalIglooAgent(CaptureAgent):
 	"""
 	def registerInitialState(self, gameState):
 		self.start = gameState.getAgentPosition(self.index)
-		self.food = STARTING_FOOD
 		CaptureAgent.registerInitialState(self, gameState)
 
 		#Find all coords with no walls
@@ -75,6 +74,7 @@ class AccidentalIglooAgent(CaptureAgent):
 		self.walls = walls.asList()
 
 		# Updates food and sets self.myFood
+		self.food = STARTING_FOOD
 		self.myFood = None
 		self.updateMyFood(gameState)
 
@@ -134,7 +134,6 @@ class AccidentalIglooAgent(CaptureAgent):
 					bestDist = dist
 			return bestAction
 
-		print "GO ", random.choice(bestActions), self.target
 		return random.choice(bestActions)
 
 	def getSuccessor(self, gameState, action):
@@ -156,7 +155,6 @@ class AccidentalIglooAgent(CaptureAgent):
 		features = self.getFeatures(gameState, action)
 		weights = self.getWeights(gameState, action)
 
-		print "GO ------", action, features * weights, self.index
 		return features * weights
 
 	def setTarget(self, gameState):
@@ -185,7 +183,6 @@ class AccidentalIglooAgent(CaptureAgent):
 		if self.enemyEaten(gameState):
 			self.onDefence = False
 			self.target = None
-			print "eaten, reset"
 
 		# check if there is any enemy is our base
 		enemies = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
@@ -401,7 +398,6 @@ class AccidentalIglooAgent(CaptureAgent):
 			enemies = self.enemiesInRange(gameState)
 			if enemies:
 				features['eatTheFood'] = 0
-				print "running for life"
 
 			enemyDanger= self.closestEnemy(successor, "distance")	
 			if(enemyDanger != None):
@@ -416,7 +412,6 @@ class AccidentalIglooAgent(CaptureAgent):
 			if features['escape'] != 0:
 				features['eatTheFood'] = 0
 				wallNo = self.deadEndCheck(gameState, action)
-				print 'WALL NO:', wallNo
 				if wallNo >= 3:
 					features['deadEnd'] = 3
 				elif wallNo >= 2:
