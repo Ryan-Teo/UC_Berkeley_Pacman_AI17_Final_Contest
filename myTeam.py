@@ -279,7 +279,7 @@ class AccidentalIglooAgent(CaptureAgent):
 
 		# head home but also stay away from ghost
 		features['distanceToHome'] = distanceToHome
-		if distanceToGhost > SAFE_DISTANCE:
+		if distanceToGhost > SAFE_DISTANCE and not successor.getAgentState(self.index).isPacman:
 			# when this step will result in us being eaten and return home
 			features['distanceToGhost'] = float('-inf')
 		else:
