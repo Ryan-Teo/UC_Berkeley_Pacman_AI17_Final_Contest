@@ -277,6 +277,10 @@ class AccidentalIglooAgent(CaptureAgent):
 		if action == Directions.STOP: 
 			features['stop'] = 1
 
+		# prevent going back to the last spot
+		if self.lastAction and action == Directions.REVERSE[self.lastAction]:
+			features['wander'] = 1
+
 		# head home but also stay away from ghost
 		features['distanceToHome'] = distanceToHome
 		if distanceToGhost > SAFE_DISTANCE and not successor.getAgentState(self.index).isPacman:
