@@ -19,6 +19,7 @@ from game import Directions
 import game
 from util import nearestPoint
 
+#USEFUL GLOBAL VARIABLES
 STARTING_FOOD = float("-inf")
 STARTING_GOAL = 1
 LUXURY_GOAL = 3
@@ -26,10 +27,10 @@ STABLE_SCORE = 8
 SAFE_DISTANCE = 4
 
 
+
 #################
 # Team creation #
 #################
-
 def createTeam(firstIndex, secondIndex, isRed, first = 'AccidentalIglooAgent', second = 'AccidentalIglooAgent'):
 	"""
 	This function should return a list of two agents that will form the
@@ -47,6 +48,8 @@ def createTeam(firstIndex, secondIndex, isRed, first = 'AccidentalIglooAgent', s
 	"""
 	return [eval(first)(firstIndex), eval(second)(secondIndex)]
 
+
+
 ##########
 # Agents #
 ##########
@@ -58,10 +61,9 @@ class AccidentalIglooAgent(CaptureAgent):
 		self.start = gameState.getAgentPosition(self.index)
 		CaptureAgent.registerInitialState(self, gameState)
 
-		#Find all coords with no walls
+		# Will create a list of all spaces with no walls based on gameState
 		noWalls = []
 		walls = gameState.getWalls()
-		#will create a list of all spaces with no walls
 		for x in range(walls.width):
 			for y in range(walls.height):
 				if walls[x][y] is False:
@@ -74,12 +76,12 @@ class AccidentalIglooAgent(CaptureAgent):
 		self.myFood = None
 		self.updateMyFood(gameState)
 
-		#Useful agent states	
+		# Useful agent states	
 		self.onStart = True
 		self.onDefence = False
 		self.isPowered = 0
 
-		# useful agent data
+		# Useful agent data
 		self.target = None
 		self.goal = STARTING_GOAL
 
@@ -91,14 +93,14 @@ class AccidentalIglooAgent(CaptureAgent):
 		foodLeft = len(self.getFood(gameState).asList())
 		isPacman = gameState.getAgentState(self.index).isPacman
 
-		# when food is deposited as well as 1st started
+		# When food is deposited as well as 1st started
 		if not isPacman and self.food < float("inf"):
 			self.food = STARTING_FOOD
 
 		self.setTarget(gameState)
 		self.checkMode(gameState)
 
-		# increase goal when score is stable
+		# Increase goal when score is stable
 		score = self.getScore(gameState)
 		if score > STABLE_SCORE:
 			self.goal = LUXURY_GOAL
@@ -132,18 +134,11 @@ class AccidentalIglooAgent(CaptureAgent):
 
 		return random.choice(bestActions)
 
-	def getSuccessor(self, gameState, action):
-		"""
-		Finds the next successor which is a grid position (location tuple).
-		"""
-		successor = gameState.generateSuccessor(self.index, action)
-		pos = successor.getAgentState(self.index).getPosition()
-		if pos != nearestPoint(pos):
-			# Only half a grid position was covered
-			return successor.generateSuccessor(self.index, action)
-		else:
-			return successor
 
+
+	##############
+	# Evaluation #
+	##############
 	def evaluate(self, gameState, action):
 		"""
 		Computes a linear combination of features and feature weights
@@ -153,195 +148,32 @@ class AccidentalIglooAgent(CaptureAgent):
 
 		return features * weights
 
-	def setTarget(self, gameState):
-		# if there is missing food and it is closer to this agent
-		missingFood = self.enemyOnOurSide(gameState)
-		if missingFood and self.closestAgent(gameState, missingFood):
-			# set missing food position as the target
-			self.target = missingFood
+	def getFeatures(self, gameState, action):
+		"""
+		Returns a counter of features for the state
+		"""
+		# if we are on defence and target is set
+		if self.onDefence and self.target:
+			features = self.getDefenceFeatures(gameState, action)
+			return features
 
-		# if we see an enemy on our side and this agent is closer
-		enemyIndex = self.closestEnemy(gameState, 'index')
-		enemyPos = self.closestEnemy(gameState, 'coord')
-		if self.onDefence and self.closestAgent(gameState, enemyPos) and gameState.getAgentState(enemyIndex).isPacman:
-			# set enemy's coordinate as target
-			self.target = enemyPos
+		# none of the special cases happen, just go generally
+		features = self.getGeneralFeatures(gameState, action)
+		return features
 
-		# if already reach that position, reset
-		myPos = gameState.getAgentState(self.index).getPosition()
-		if self.target == myPos:
-			self.target = None
+	def getWeights(self, gameState, action):
+		"""
+		Normally, weights do not depend on the gamestate.  They can be either
+		a counter or a dictionary.
+		"""
+		return {'successorScore': 1.0, 'food': 50, 'stop': -100, 'eatTheFood': 100, 'escape': -500, 'getCapsule':1000, 'deadEnd': -200,
+				'distanceToHome': -10, 'distanceToFood': -10, 'distanceToTarget': -10, 'distanceToPartner': 8}
 
-	def checkMode(self, gameState):
-		isPacman = gameState.getAgentState(self.index).isPacman
 
-		# reset target and mode when enemy is eaten
-		if self.enemyEaten(gameState):
-			self.onDefence = False
-			self.target = None
 
-		# check if there is any enemy is our base
-		enemies = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
-		invaders = [a for a in enemies if a.isPacman]
-		if not invaders:
-			self.onDefence = False
-			self.target = None
-		else:
-			self.onDefence = True
-
-		# make it false once it passes the border
-		if self.onStart and isPacman:
-			self.onStart = False
-
-		# to prevent both agents going for the same food
-		teammates = [gameState.getAgentState(i) for i in self.getTeam(gameState)]
-		ghosts = [a for a in teammates if not a.isPacman]
-		if len(ghosts) >= 2:
-			self.onStart = True	
-
-	def enemiesInRange(self, gameState):
-		myPos = gameState.getAgentState(self.index).getPosition()
-		enemies = []
-		for enemy in self.getOpponents(gameState):
-			coord = gameState.getAgentState(enemy).getPosition()
-			if coord != None and self.getMazeDistance(myPos, coord) < SAFE_DISTANCE:
-				enemies.append(coord)
-		return enemies
-
-	def getClosestCoord(self, coordList, gameState):
-		currentPosition = gameState.getAgentState(self.index).getPosition()
-		minCoord = None
-		minDist = float('inf')
-		for coord in coordList:
-			if self.getMazeDistance(currentPosition, coord) < minDist:
-				minCoord = coord
-				minDist = self.getMazeDistance(currentPosition, coord)
-		return minCoord, minDist
-
-	def enemyCoord(self, gameState):
-		enemies = []
-		for enemy in self.getOpponents(gameState):
-			coord = gameState.getAgentPosition(enemy)
-			if coord != None:
-				enemies.append((coord,enemy))
-		return enemies
-
-	def closestEnemy(self, gameState, option):
-		#Option = ["distance", "index", "coord"]
-		enemies = self.enemyCoord(gameState)
-		myPos = gameState.getAgentPosition(self.index)
-		closestEnemyPos = None
-		closestEnemyIndex = None
-		closest = None
-		if len(enemies) != 0:
-			for enemyPos, enemy in enemies:
-				distance = self.getMazeDistance(myPos, enemyPos)
-				if distance < closest or closest == None:
-					closest = distance
-					closestEnemyPos = enemyPos
-					closestEnemyIndex = enemy
-		if option == "distance":
-			return closest
-		elif option == "index":
-			return closestEnemyIndex
-		elif option == "coord":
-			return closestEnemyPos
-		else:
-			raise ValueError('Option value in closestEnemy is wrong : myTeam.py')
-
-	def capsuleDist(self, gameState):
-		capsules = CaptureAgent.getCapsules(self, gameState)
-		capsuleCoord, capsuleDist = self.getClosestCoord(capsules, gameState)
-		return capsuleCoord, capsuleDist
-
-	def enemyOnOurSide(self, gameState):
-		missingFood = None
-		if self.red:
-			redFood = gameState.getRedFood().asList()
-			if len(redFood) < len(self.myFood):
-				for food in self.myFood:
-					if food not in redFood:
-						missingFood = food
-						self.myFood = redFood
-		else:
-			blueFood = gameState.getBlueFood().asList()
-			if len(blueFood) < len(self.myFood):
-				for food in self.myFood:
-					if food not in blueFood:
-						missingFood = food
-						self.myFood = blueFood
-		return missingFood
-		
-	def closestAgent(self, gameState, targetPos):
-		# check if return value == self.index
-		if targetPos is None:
-			return False
-		else:
-			myTeam = self.getTeam(gameState)
-			teamDist = []
-			for teamMate in myTeam:
-				distToEnemy = self.getMazeDistance(gameState.getAgentPosition(teamMate),targetPos)
-				teamDist.append((teamMate, distToEnemy))
-			closestAgent = min(teamDist, key= lambda x:x[1])[0]
-			return closestAgent == self.index
-
-	def enemyEaten(self, gameState):
-		eaten = False
-		currEnemy = self.enemiesInRange(gameState)
-		previousState = self.getPreviousObservation()
-		pastEnemies = None
-		if previousState:
-			pastEnemies = self.enemiesInRange(previousState)
-		if pastEnemies:
-		#if enemies could be seen in the previous state
-			pastEnemyDistance = self.closestEnemy(previousState, "distance")
-			pastEnemyIndex = self.closestEnemy(previousState, "index")
-			if pastEnemyDistance <= 1 and pastEnemyIndex not in currEnemy:
-			#if enemy was next to me and is not in current range, he's eaten
-				eaten = True
-		self.updateMyFood(gameState)
-		return eaten
-
-	def updateMyFood(self, gameState):
-		if self.red:
-			self.myFood = gameState.getRedFood().asList()
-		else:
-			self.myFood = gameState.getBlueFood().asList()
-
-	def deadEndCheck(self, gameState, action):
-		successor = self.getSuccessor(gameState, action)
-		myPos = successor.getAgentState(self.index).getPosition()
-		x, y = myPos
-		check = 0
-		
-		checkPositions = [(x+1, y),(x-1, y),(x, y+1),(x, y-1)]
-		
-		for position in checkPositions:
-			if position in self.walls:
-				check += 1
-		return check
-
-	def distanceBetweenPartner(self, gameState):
-		# calculate distance between partner
-		team = self.getTeam(gameState)
-		for teammate in team:
-			if not teammate == self.index:
-				myPos = gameState.getAgentState(self.index).getPosition()
-				matePos = gameState.getAgentState(teammate).getPosition()
-				distance = self.getMazeDistance(myPos, matePos)
-				return distance
-
-	# from stack overflow 
-	# https://stackoverflow.com/questions/26779618/python-find-second-smallest-number
-	def second_smallest(self, numbers):
-		m1, m2 = float('inf'), float('inf')
-		for x in numbers:
-			if x <= m1:
-				m1, m2 = x, m1
-			elif x < m2:
-				m2 = x
-		return m2
-
+	##############
+	# Features #
+	##############
 	def getGeneralFeatures(self, gameState, action):
 		"""
 		Returns a counter of features for the state
@@ -438,23 +270,219 @@ class AccidentalIglooAgent(CaptureAgent):
 
 		return features
 
-	def getFeatures(self, gameState, action):
-		"""
-		Returns a counter of features for the state
-		"""
-		# if we are on defence and target is set
-		if self.onDefence and self.target:
-			features = self.getDefenceFeatures(gameState, action)
-			return features
 
-		# none of the special cases happen, just go generally
-		features = self.getGeneralFeatures(gameState, action)
-		return features
 
-	def getWeights(self, gameState, action):
+	###################
+	# Enemy functions #
+	###################
+	def enemyOnOurSide(self, gameState):
+		missingFood = None
+		if self.red:
+			redFood = gameState.getRedFood().asList()
+			if len(redFood) < len(self.myFood):
+				for food in self.myFood:
+					if food not in redFood:
+						missingFood = food
+						self.myFood = redFood
+		else:
+			blueFood = gameState.getBlueFood().asList()
+			if len(blueFood) < len(self.myFood):
+				for food in self.myFood:
+					if food not in blueFood:
+						missingFood = food
+						self.myFood = blueFood
+		return missingFood
+
+	def enemyEaten(self, gameState):
+		eaten = False
+		currEnemy = self.enemiesInRange(gameState)
+		previousState = self.getPreviousObservation()
+		pastEnemies = None
+		if previousState:
+			pastEnemies = self.enemiesInRange(previousState)
+		if pastEnemies:
+		#if enemies could be seen in the previous state
+			pastEnemyDistance = self.closestEnemy(previousState, "distance")
+			pastEnemyIndex = self.closestEnemy(previousState, "index")
+			if pastEnemyDistance <= 1 and pastEnemyIndex not in currEnemy:
+			#if enemy was next to me and is not in current range, he's eaten
+				eaten = True
+		self.updateMyFood(gameState)
+		return eaten
+
+	def enemiesInRange(self, gameState):
+		myPos = gameState.getAgentState(self.index).getPosition()
+		enemies = []
+		for enemy in self.getOpponents(gameState):
+			coord = gameState.getAgentState(enemy).getPosition()
+			if coord != None and self.getMazeDistance(myPos, coord) < SAFE_DISTANCE:
+				enemies.append(coord)
+		return enemies
+
+	def closestEnemy(self, gameState, option):
+		#Option = ["distance", "index", "coord"]
+		enemies = self.enemyCoord(gameState)
+		myPos = gameState.getAgentPosition(self.index)
+		closestEnemyPos = None
+		closestEnemyIndex = None
+		closest = None
+		if len(enemies) != 0:
+			for enemyPos, enemy in enemies:
+				distance = self.getMazeDistance(myPos, enemyPos)
+				if distance < closest or closest == None:
+					closest = distance
+					closestEnemyPos = enemyPos
+					closestEnemyIndex = enemy
+		if option == "distance":
+			return closest
+		elif option == "index":
+			return closestEnemyIndex
+		elif option == "coord":
+			return closestEnemyPos
+		else:
+			#Should only alert programmer of syntax error
+			raise ValueError('Option value in closestEnemy is wrong : myTeam.py')
+
+	def enemyCoord(self, gameState):
+		enemies = []
+		for enemy in self.getOpponents(gameState):
+			coord = gameState.getAgentPosition(enemy)
+			if coord != None:
+				enemies.append((coord,enemy))
+		return enemies
+
+
+
+	#######################
+	# Our Agent Functions #
+	#######################
+	def checkMode(self, gameState):
+		isPacman = gameState.getAgentState(self.index).isPacman
+		# reset target and mode when enemy is eaten
+		if self.enemyEaten(gameState):
+			self.onDefence = False
+			self.target = None
+
+		# check if there is any enemy is our base
+		enemies = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
+		invaders = [a for a in enemies if a.isPacman]
+		if not invaders:
+			self.onDefence = False
+			self.target = None
+		else:
+			self.onDefence = True
+
+		# make it false once it passes the border
+		if self.onStart and isPacman:
+			self.onStart = False
+
+		# to prevent both agents going for the same food
+		teammates = [gameState.getAgentState(i) for i in self.getTeam(gameState)]
+		ghosts = [a for a in teammates if not a.isPacman]
+		if len(ghosts) >= 2:
+			self.onStart = True
+
+	def setTarget(self, gameState):
+		# if there is missing food and it is closer to this agent
+		missingFood = self.enemyOnOurSide(gameState)
+		if missingFood and self.closestAgent(gameState, missingFood):
+			# set missing food position as the target
+			self.target = missingFood
+
+		# if we see an enemy on our side and this agent is closer
+		enemyIndex = self.closestEnemy(gameState, 'index')
+		enemyPos = self.closestEnemy(gameState, 'coord')
+		if self.onDefence and self.closestAgent(gameState, enemyPos) and gameState.getAgentState(enemyIndex).isPacman:
+			# set enemy's coordinate as target
+			self.target = enemyPos
+
+		# if already reach that position, reset
+		myPos = gameState.getAgentState(self.index).getPosition()
+		if self.target == myPos:
+			self.target = None
+
+	def closestAgent(self, gameState, targetPos):
+		# check if return value == self.index
+		if targetPos is None:
+			return False
+		else:
+			myTeam = self.getTeam(gameState)
+			teamDist = []
+			for teamMate in myTeam:
+				distToEnemy = self.getMazeDistance(gameState.getAgentPosition(teamMate),targetPos)
+				teamDist.append((teamMate, distToEnemy))
+			closestAgent = min(teamDist, key= lambda x:x[1])[0]
+			return closestAgent == self.index
+
+	def distanceBetweenPartner(self, gameState):
+		# calculate distance between partner
+		team = self.getTeam(gameState)
+		for teammate in team:
+			if not teammate == self.index:
+				myPos = gameState.getAgentState(self.index).getPosition()
+				matePos = gameState.getAgentState(teammate).getPosition()
+				distance = self.getMazeDistance(myPos, matePos)
+				return distance
+
+	def updateMyFood(self, gameState):
+		if self.red:
+			self.myFood = gameState.getRedFood().asList()
+		else:
+			self.myFood = gameState.getBlueFood().asList()
+
+	def capsuleDist(self, gameState):
+		capsules = CaptureAgent.getCapsules(self, gameState)
+		capsuleCoord, capsuleDist = self.getClosestCoord(capsules, gameState)
+		return capsuleCoord, capsuleDist
+	
+	def deadEndCheck(self, gameState, action):
+		successor = self.getSuccessor(gameState, action)
+		myPos = successor.getAgentState(self.index).getPosition()
+		x, y = myPos
+		check = 0
+		
+		checkPositions = [(x+1, y),(x-1, y),(x, y+1),(x, y-1)]
+		
+		for position in checkPositions:
+			if position in self.walls:
+				check += 1
+		return check
+
+
+
+	#####################
+	# General functions #
+	#####################
+
+	def getSuccessor(self, gameState, action):
 		"""
-		Normally, weights do not depend on the gamestate.  They can be either
-		a counter or a dictionary.
+		Finds the next successor which is a grid position (location tuple).
 		"""
-		return {'successorScore': 1.0, 'food': 50, 'stop': -100, 'eatTheFood': 100, 'escape': -500, 'getCapsule':1000, 'deadEnd': -200,
-				'distanceToHome': -10, 'distanceToFood': -10, 'distanceToTarget': -10, 'distanceToPartner': 8}
+		successor = gameState.generateSuccessor(self.index, action)
+		pos = successor.getAgentState(self.index).getPosition()
+		if pos != nearestPoint(pos):
+			# Only half a grid position was covered
+			return successor.generateSuccessor(self.index, action)
+		else:
+			return successor
+
+	def getClosestCoord(self, coordList, gameState):
+		currentPosition = gameState.getAgentState(self.index).getPosition()
+		minCoord = None
+		minDist = float('inf')
+		for coord in coordList:
+			if self.getMazeDistance(currentPosition, coord) < minDist:
+				minCoord = coord
+				minDist = self.getMazeDistance(currentPosition, coord)
+		return minCoord, minDist
+
+	# from stack overflow 
+	# https://stackoverflow.com/questions/26779618/python-find-second-smallest-number
+	def second_smallest(self, numbers):
+		m1, m2 = float('inf'), float('inf')
+		for x in numbers:
+			if x <= m1:
+				m1, m2 = x, m1
+			elif x < m2:
+				m2 = x
+		return m2
