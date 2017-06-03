@@ -49,12 +49,13 @@ def createTeam(firstIndex, secondIndex, isRed, first = 'AccidentalIglooAgent', s
 
 
 
-##########
-# Agents #
-##########
+#########
+# Agent #
+#########
+
 class AccidentalIglooAgent(CaptureAgent):
 	"""
-	A base class for reflex agents that chooses score-maximizing actions
+	A reflex agent that chooses score-maximizing actions
 	"""
 	def registerInitialState(self, gameState):
 		self.start = gameState.getAgentPosition(self.index)
@@ -139,6 +140,7 @@ class AccidentalIglooAgent(CaptureAgent):
 	##############
 	# Evaluation #
 	##############
+
 	def evaluate(self, gameState, action):
 		"""
 		Computes a linear combination of features and feature weights
@@ -182,8 +184,9 @@ class AccidentalIglooAgent(CaptureAgent):
 
 
 	##############
-	# Features #
+	#  Features  #
 	##############
+
 	def getGeneralFeatures(self, gameState, action):
 		"""
 		Returns a counter of features for the state
@@ -278,9 +281,12 @@ class AccidentalIglooAgent(CaptureAgent):
 
 		return features
 
+
+
 	###################
 	# Enemy functions #
 	###################
+
 	def enemyOnOurSide(self, gameState):
 		missingFood = None
 		if self.red:
@@ -362,6 +368,7 @@ class AccidentalIglooAgent(CaptureAgent):
 	#######################
 	# Our Agent Functions #
 	#######################
+
 	def checkMode(self, gameState):
 		isPacman = gameState.getAgentState(self.index).isPacman
 		# reset target and mode when enemy is eaten
