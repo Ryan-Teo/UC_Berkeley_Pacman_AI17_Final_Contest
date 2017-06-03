@@ -96,8 +96,11 @@ class AccidentalIglooAgent(CaptureAgent):
 		isPacman = gameState.getAgentState(self.index).isPacman
 
 		# When food is deposited as well as 1st started
-		if not isPacman and self.food < float("inf"):
-			self.food = STARTING_FOOD
+		if not isPacman and self.food > 0:
+			# reset food amount
+			self.food = STARTING_FOOD 
+			# it's okay to just turn around and get food again
+			self.lastAction = None
 
 		self.setTarget(gameState)
 		self.checkMode(gameState)
@@ -122,17 +125,8 @@ class AccidentalIglooAgent(CaptureAgent):
 			if self.food == STARTING_FOOD:
 				self.food = 0
 			self.food += 1
-
-		if foodLeft <= 2:
-			bestDist = 9999
-			for action in actions:
-				successor = self.getSuccessor(gameState, action)
-				pos2 = successor.getAgentPosition(self.index)
-				dist = self.getMazeDistance(self.start, pos2)
-				if dist < bestDist:
-					bestAction = action
-					bestDist = dist
-			return bestAction
+			# it's okay to just turn around and get food again or go home straight
+			self.lastAction = None
 
 		bestAction = random.choice(bestActions)
 		self.lastAction = bestAction
@@ -151,7 +145,7 @@ class AccidentalIglooAgent(CaptureAgent):
 		"""
 		features = self.getFeatures(gameState, action)
 		weights = self.getWeights(gameState, action)
-
+		
 		return features * weights
 
 	def getFeatures(self, gameState, action):
@@ -181,7 +175,7 @@ class AccidentalIglooAgent(CaptureAgent):
 		Normally, weights do not depend on the gamestate.  They can be either
 		a counter or a dictionary.
 		"""
-		return {'successorScore': 1.0, 'stop': -100, 'wander': -100,
+		return {'successorScore': 1.0, 'stop': -100, 'wander': -80,
 				'food': 50, 'eatTheFood': 100, 'deadEnd': -200, 
 				'distanceToHome': -10, 'distanceToFood': -10, 'distanceToTarget': -10, 
 				'distanceToPartner': 8, 'distanceToGhost': 50}
@@ -198,8 +192,11 @@ class AccidentalIglooAgent(CaptureAgent):
 		"""
 		features = util.Counter()
 		successor = self.getSuccessor(gameState, action)
+
 		foodList = self.getFood(successor).asList() 
 		currentFoodList = self.getFood(gameState).asList() 
+		foodLeft = len(currentFoodList)
+
 		myPos = successor.getAgentState(self.index).getPosition()
 		distanceToHome = self.getMazeDistance(self.start, myPos)
 
@@ -230,15 +227,22 @@ class AccidentalIglooAgent(CaptureAgent):
 		if len(foodList) > 0: # This should always be True,  but better safe than sorry
 			myPos = successor.getAgentState(self.index).getPosition()
 			myTeam = self.getTeam(gameState)
+			
 			# agents going for different food at the start
 			if self.onStart and self.index == min(myTeam):
 				minDistance = self.second_smallest([self.getMazeDistance(myPos, food) for food in foodList])
 			else:
 				minDistance = min([self.getMazeDistance(myPos, food) for food in foodList])
+			
 			# deposit food home when collected enough
 			if self.food == STARTING_FOOD or self.food < self.goal:
 				features['distanceToFood'] = minDistance
 			else:
+				features['distanceToHome'] = distanceToHome
+
+			# when only 2 food left, go home
+			if foodLeft <= 2:
+				features['distanceToFood'] = 0
 				features['distanceToHome'] = distanceToHome
 
 		return features
@@ -388,6 +392,8 @@ class AccidentalIglooAgent(CaptureAgent):
 		if self.enemyEaten(gameState):
 			self.onDefence = False
 			self.target = None
+			# it's okay to just turn around and get food again
+			self.lastAction = None
 
 		# check if there is any enemy is our base
 		enemies = [gameState.getAgentState(i) for i in self.getOpponents(gameState)]
