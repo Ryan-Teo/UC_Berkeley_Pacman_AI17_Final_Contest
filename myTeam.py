@@ -401,10 +401,8 @@ class AccidentalIglooAgent(CaptureAgent):
 
 			enemyDanger= self.closestEnemy(successor, "distance")	
 			if(enemyDanger != None):
-				if(enemyDanger <= 4):
+				if(enemyDanger <= SAFE_DISTANCE):
 					features['escape'] = 8/enemyDanger
-				elif(enemyDanger <= 8):
-					features['escape'] = 1
 				else:
 					features['escape'] = 0  
 				features['distanceToHome'] = distanceToHome
