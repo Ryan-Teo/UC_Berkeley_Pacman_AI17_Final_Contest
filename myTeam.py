@@ -195,7 +195,7 @@ class AccidentalIglooAgent(CaptureAgent):
 
 		foodList = self.getFood(successor).asList() 
 		currentFoodList = self.getFood(gameState).asList() 
-		foodLeft = len(currentFoodList)
+		foodLeft = len(foodList)
 
 		myPos = successor.getAgentState(self.index).getPosition()
 		distanceToHome = self.getMazeDistance(self.start, myPos)
@@ -276,10 +276,6 @@ class AccidentalIglooAgent(CaptureAgent):
 		# prevent it to stop
 		if action == Directions.STOP: 
 			features['stop'] = 1
-
-		# prevent going back to the last spot
-		if self.lastAction and action == Directions.REVERSE[self.lastAction]:
-			features['wander'] = 1
 
 		# head home but also stay away from ghost
 		features['distanceToHome'] = distanceToHome
