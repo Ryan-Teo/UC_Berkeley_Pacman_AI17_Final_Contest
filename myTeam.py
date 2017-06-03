@@ -134,7 +134,10 @@ class AccidentalIglooAgent(CaptureAgent):
 					bestDist = dist
 			return bestAction
 
-		return random.choice(bestActions)
+		bestAction = random.choice(bestActions)
+		self.lastAction = bestAction
+
+		return bestAction
 
 
 
@@ -178,7 +181,8 @@ class AccidentalIglooAgent(CaptureAgent):
 		Normally, weights do not depend on the gamestate.  They can be either
 		a counter or a dictionary.
 		"""
-		return {'successorScore': 1.0, 'food': 50, 'stop': -100, 'eatTheFood': 100, 'deadEnd': -200,
+		return {'successorScore': 1.0, 'stop': -100, 'wander': -100,
+				'food': 50, 'eatTheFood': 100, 'deadEnd': -200, 
 				'distanceToHome': -10, 'distanceToFood': -10, 'distanceToTarget': -10, 
 				'distanceToPartner': 8, 'distanceToGhost': 50}
 
@@ -211,6 +215,10 @@ class AccidentalIglooAgent(CaptureAgent):
 		# always prevent stopping
 		if action == 'Stop':
 			features['stop'] = 1
+
+		# prevent going back to the last spot
+		if self.lastAction and action == Directions.REVERSE[self.lastAction]:
+			features['wander'] = 1
 
 		# convert my position from float to int to check if it has food
 		floatX, floatY = myPos
@@ -264,6 +272,10 @@ class AccidentalIglooAgent(CaptureAgent):
 		# prevent it to stop
 		if action == Directions.STOP: 
 			features['stop'] = 1
+
+		# prevent going back to the last spot
+		if self.lastAction and action == Directions.REVERSE[self.lastAction]:
+			features['wander'] = 1
 
 		# head home but also stay away from ghost
 		features['distanceToHome'] = distanceToHome
