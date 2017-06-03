@@ -84,6 +84,7 @@ class AccidentalIglooAgent(CaptureAgent):
 
 		# Useful agent data
 		self.target = None
+		self.lastAction = None
 		self.goal = STARTING_GOAL
 
 	def chooseAction(self, gameState):
