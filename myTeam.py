@@ -37,7 +37,6 @@ def createTeam(firstIndex, secondIndex, isRed, first = 'AccidentalIglooAgent', s
 	team, initialized using firstIndex and secondIndex as their agent
 	index numbers.  isRed is True if the red team is being created, and
 	will be False if the blue team is being created.
-
 	As a potentially helpful development aid, this function can take
 	additional string-valued keyword arguments ("first" and "second" are
 	such arguments in the case of this function), which will come from
@@ -50,12 +49,13 @@ def createTeam(firstIndex, secondIndex, isRed, first = 'AccidentalIglooAgent', s
 
 
 
-##########
-# Agents #
-##########
+#########
+# Agent #
+#########
+
 class AccidentalIglooAgent(CaptureAgent):
 	"""
-	A base class for reflex agents that chooses score-maximizing actions
+	A reflex agent that chooses score-maximizing actions
 	"""
 	def registerInitialState(self, gameState):
 		self.start = gameState.getAgentPosition(self.index)
@@ -79,6 +79,7 @@ class AccidentalIglooAgent(CaptureAgent):
 		# Useful agent states	
 		self.onStart = True
 		self.onDefence = False
+		self.onEscape = False
 		self.isPowered = 0
 
 		# Useful agent data
@@ -139,6 +140,7 @@ class AccidentalIglooAgent(CaptureAgent):
 	##############
 	# Evaluation #
 	##############
+
 	def evaluate(self, gameState, action):
 		"""
 		Computes a linear combination of features and feature weights
@@ -157,6 +159,15 @@ class AccidentalIglooAgent(CaptureAgent):
 			features = self.getDefenceFeatures(gameState, action)
 			return features
 
+		# only check when agent is pacman or about to become pacman
+		successor = self.getSuccessor(gameState, action)
+		isPacman = gameState.getAgentState(self.index).isPacman
+		isGoingToBePacman = successor.getAgentState(self.index).isPacman
+		if self.onEscape:
+			if isPacman or isGoingToBePacman:
+				features = self.getEscapeFeatures(gameState, action)
+				return features
+
 		# none of the special cases happen, just go generally
 		features = self.getGeneralFeatures(gameState, action)
 		return features
@@ -166,14 +177,16 @@ class AccidentalIglooAgent(CaptureAgent):
 		Normally, weights do not depend on the gamestate.  They can be either
 		a counter or a dictionary.
 		"""
-		return {'successorScore': 1.0, 'food': 50, 'stop': -100, 'eatTheFood': 100, 'escape': -500, 'getCapsule':1000, 'deadEnd': -200,
-				'distanceToHome': -10, 'distanceToFood': -10, 'distanceToTarget': -10, 'distanceToPartner': 8}
+		return {'successorScore': 1.0, 'food': 50, 'stop': -100, 'eatTheFood': 100, 'deadEnd': -200,
+				'distanceToHome': -10, 'distanceToFood': -10, 'distanceToTarget': -10, 
+				'distanceToPartner': 8, 'distanceToGhost': 50}
 
 
 
 	##############
-	# Features #
+	#  Features  #
 	##############
+
 	def getGeneralFeatures(self, gameState, action):
 		"""
 		Returns a counter of features for the state
@@ -219,37 +232,6 @@ class AccidentalIglooAgent(CaptureAgent):
 			else:
 				features['distanceToHome'] = distanceToHome
 
-		# only check when agent is pacman or about to become pacman
-		isPacman = gameState.getAgentState(self.index).isPacman
-		isGoingToBePacman = successor.getAgentState(self.index).isPacman
-		if isPacman or isGoingToBePacman:
-			enemies = self.enemiesInRange(gameState)
-			if enemies:
-				features['eatTheFood'] = 0
-
-			enemyDanger= self.closestEnemy(successor, "distance")	
-			if(enemyDanger != None):
-				if(enemyDanger <= SAFE_DISTANCE):
-					features['escape'] = 8/enemyDanger
-				else:
-					features['escape'] = 0  
-				features['distanceToHome'] = distanceToHome
-
-			if features['escape'] != 0:
-				features['eatTheFood'] = 0
-				wallNo = self.deadEndCheck(gameState, action)
-				if wallNo >= 3:
-					features['deadEnd'] = 3
-				elif wallNo >= 2:
-					features['deadEnd'] = 2
-				elif wallNo <2 :
-					features['deadEnd'] =0
-		
-			capsuleCoord, capsuleDist = self.capsuleDist(gameState)
-			
-			if capsuleDist < enemyDanger:
-				features['getCapsule'] = 1
-
 		return features
 
 	def getDefenceFeatures(self, gameState, action):
@@ -270,11 +252,41 @@ class AccidentalIglooAgent(CaptureAgent):
 
 		return features
 
+	def getEscapeFeatures(self, gameState, action):
+		features = util.Counter()
+		successor = self.getSuccessor(gameState, action)
+
+		myPos = successor.getAgentState(self.index).getPosition()
+		distanceToHome = self.getMazeDistance(self.start, myPos)
+		distanceToGhost = self.closestEnemy(successor, "distance")	
+
+		# prevent it to stop
+		if action == Directions.STOP: 
+			features['stop'] = 1
+
+		# head home but also stay away from ghost
+		features['distanceToHome'] = distanceToHome
+		if distanceToGhost > SAFE_DISTANCE:
+			# when this step will result in us being eaten and return home
+			features['distanceToGhost'] = float('-inf')
+		else:
+			features['distanceToGhost'] = distanceToGhost
+
+		# don't run into dead end for next 3 steps
+		for index in range(1, 3):
+			wallNo = self.deadEndCheck(gameState, action)
+			if wallNo >= 3:
+				features['deadEnd'] = 3
+				break
+
+		return features
+
 
 
 	###################
 	# Enemy functions #
 	###################
+
 	def enemyOnOurSide(self, gameState):
 		missingFood = None
 		if self.red:
@@ -322,7 +334,7 @@ class AccidentalIglooAgent(CaptureAgent):
 	def closestEnemy(self, gameState, option):
 		#Option = ["distance", "index", "coord"]
 		enemies = self.enemyCoord(gameState)
-		myPos = gameState.getAgentPosition(self.index)
+		myPos = gameState.getAgentState(self.index).getPosition()
 		closestEnemyPos = None
 		closestEnemyIndex = None
 		closest = None
@@ -346,7 +358,7 @@ class AccidentalIglooAgent(CaptureAgent):
 	def enemyCoord(self, gameState):
 		enemies = []
 		for enemy in self.getOpponents(gameState):
-			coord = gameState.getAgentPosition(enemy)
+			coord = gameState.getAgentState(enemy).getPosition()
 			if coord != None:
 				enemies.append((coord,enemy))
 		return enemies
@@ -356,6 +368,7 @@ class AccidentalIglooAgent(CaptureAgent):
 	#######################
 	# Our Agent Functions #
 	#######################
+
 	def checkMode(self, gameState):
 		isPacman = gameState.getAgentState(self.index).isPacman
 		# reset target and mode when enemy is eaten
@@ -381,6 +394,13 @@ class AccidentalIglooAgent(CaptureAgent):
 		ghosts = [a for a in teammates if not a.isPacman]
 		if len(ghosts) >= 2:
 			self.onStart = True
+
+		# check if there is ghost around
+		distanceToGhost = self.closestEnemy(gameState, "distance")	
+		if distanceToGhost and distanceToGhost <= SAFE_DISTANCE:
+			self.onEscape = True
+		else:
+			self.onEscape = False
 
 	def setTarget(self, gameState):
 		# if there is missing food and it is closer to this agent
@@ -409,7 +429,7 @@ class AccidentalIglooAgent(CaptureAgent):
 			myTeam = self.getTeam(gameState)
 			teamDist = []
 			for teamMate in myTeam:
-				distToEnemy = self.getMazeDistance(gameState.getAgentPosition(teamMate),targetPos)
+				distToEnemy = self.getMazeDistance(gameState.getAgentState(teamMate).getPosition(),targetPos)
 				teamDist.append((teamMate, distToEnemy))
 			closestAgent = min(teamDist, key= lambda x:x[1])[0]
 			return closestAgent == self.index
